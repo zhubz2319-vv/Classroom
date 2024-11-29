@@ -6,11 +6,13 @@ import android.app.NotificationManager
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.FullyDrawnReporterOwner
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -26,6 +28,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -37,12 +40,14 @@ import androidx.compose.material3.TopAppBarDefaults.topAppBarColors
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
@@ -70,6 +75,7 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import com.example.iems5725_Classroom.ui.theme.IEMS5725_ClassTheme
+import com.google.firebase.messaging.Constants.MessageNotificationKeys.TAG
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.jsonArray
@@ -79,8 +85,12 @@ import kotlinx.serialization.json.jsonPrimitive
 
 const val MY_USER_ID = 1155229615
 const val MY_USER_NAME = "test"
+const val BASE_URL = "https://chat.lamitt.com/"
+
 
 class MainActivity : ComponentActivity() {
+
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -200,6 +210,7 @@ data class TokenMessage(val token: String,
 fun ScaffoldUI() {
     val viewModel: MainViewModel = viewModel()
     val context = LocalContext.current
+    var selectedTab by remember { mutableIntStateOf(0) }
 //    LaunchedEffect(Unit) {
 //        rooms = withContext(Dispatchers.IO) {
 //            getResultFromApi(BASE_URL + "get_chatrooms/")
@@ -214,7 +225,7 @@ fun ScaffoldUI() {
                     titleContentColor = MaterialTheme.colorScheme.primary,
                 ),
                 title = {
-                    Text("IEMS5722")
+                    Text(viewModel.tabName.value)
                 },
                 navigationIcon = {
                     IconButton(onClick = { }) {
@@ -234,32 +245,40 @@ fun ScaffoldUI() {
                         horizontalArrangement = Arrangement.SpaceEvenly,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        IconButton(
-                            onClick = { viewModel.fetchTabData(0) },
-                            modifier = Modifier.size(40.dp)
-                        ) {
 
-                            Icon(
-                                painter = painterResource(R.drawable.courses),
-                                contentDescription = "Localized description"
-                            )
-                        }
                         IconButton(
-                            onClick = { viewModel.fetchTabData(1) },
+                            onClick = {
+                                viewModel.fetchTabData(0, "Courses")
+                                selectedTab = 0
+                                      },
                             modifier = Modifier.size(40.dp)
                         ) {
                             Icon(
-                                painter = painterResource(R.drawable.study_group),
+                                painter = painterResource(R.drawable.courses_us),
                                 contentDescription = "Localized description",
+                                tint = if (selectedTab == 0) Color.Blue else Color.Black
                             )
                         }
                         IconButton(
-                            onClick = { viewModel.fetchTabData(2) },
+                            onClick = { viewModel.fetchTabData(1, "Chat Groups")
+                                selectedTab = 1},
                             modifier = Modifier.size(40.dp)
                         ) {
                             Icon(
-                                painter = painterResource(R.drawable.my_info),
+                                painter = painterResource(R.drawable.chatgroup_us),
                                 contentDescription = "Localized description",
+                                tint = if (selectedTab == 1) Color.Blue else Color.Black
+                            )
+                        }
+                        IconButton(
+                            onClick = { viewModel.fetchTabData(2, "My Profile")
+                                selectedTab = 2},
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.myinfo_us),
+                                contentDescription = "Localized description",
+                                tint = if (selectedTab == 2) Color.Blue else Color.Black
                             )
                         }
                     }
@@ -270,40 +289,72 @@ fun ScaffoldUI() {
         modifier = Modifier.fillMaxSize()
     ) { innerPadding ->
         Column(
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier
+                .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            when (viewModel.selectedTab.value){
-                0 -> {
-                    val dataArray = viewModel.content.value["course"]?.jsonArray
-                    dataArray?.forEach { element ->
-                        val dataObject = element.jsonObject
-                        val courseName = dataObject["course_name"]?.jsonPrimitive?.content
-                        val courseCode = dataObject["course_code"]?.jsonPrimitive?.content
-                        val instructor = dataObject["instructor"]?.jsonPrimitive?.content
-                        val studentsArray = dataObject["students"]?.jsonArray
-                        val student: List<String> =studentsArray?.map {
-                            Json.decodeFromJsonElement<String>(it)
-                        } ?: emptyList()
-                        CourseItem(courseName.toString(), courseCode.toString(),instructor.toString(),student)
-                    }
+            if (viewModel.selectedTab.value != selectedTab)
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.align(Alignment.Center)
+                    )
                 }
-                1 -> {
-                    val dataArray = viewModel.content.value["rooms"]?.jsonArray
-                    dataArray?.forEach { element ->
-                        val dataObject = element.jsonObject
-                        val roomId = dataObject["room_id"]?.jsonPrimitive?.content
-                        val roomName = dataObject["room_name"]?.jsonPrimitive?.content
-                        val owner = dataObject["owner"]?.jsonPrimitive?.content
-                        ChatRoomItem(roomId.toString(), roomName.toString(),owner.toString())
+            else {
+                LazyColumn {
+                    item {
+                        when (viewModel.selectedTab.value) {
+                            0 -> {
+                                val dataArray = viewModel.content.value["courses"]?.jsonArray
+                                dataArray?.forEach { element ->
+                                    val dataObject = element.jsonObject
+                                    val courseName =
+                                        dataObject["course_name"]?.jsonPrimitive?.content
+                                    val courseCode =
+                                        dataObject["course_code"]?.jsonPrimitive?.content
+                                    val instructor =
+                                        dataObject["instructor"]?.jsonPrimitive?.content
+                                    val studentsArray = dataObject["students"]?.jsonArray
+                                    val student: List<String> = studentsArray?.map {
+                                        Json.decodeFromJsonElement<String>(it)
+                                    } ?: emptyList()
+                                    Log.d(TAG, "students list: ${student}")
+                                    CourseItem(
+                                        courseName.toString(),
+                                        courseCode.toString(),
+                                        instructor.toString(),
+                                        student
+                                    )
+                                }
+                            }
+
+                            1 -> {
+                                val dataArray = viewModel.content.value["rooms"]?.jsonArray
+                                dataArray?.forEach { element ->
+                                    val dataObject = element.jsonObject
+                                    val roomId = dataObject["room_id"]?.jsonPrimitive?.content
+                                    val roomName = dataObject["room_name"]?.jsonPrimitive?.content
+                                    val owner = dataObject["owner"]?.jsonPrimitive?.content
+                                    ChatRoomItem(
+                                        roomId.toString(),
+                                        roomName.toString(),
+                                        owner.toString()
+                                    )
+                                }
+                            }
+
+                            2 -> {
+                                val nickname =
+                                    viewModel.content.value["nickname"]?.jsonPrimitive?.content
+                                val role = viewModel.content.value["role"]?.jsonPrimitive?.content
+                                UserInfoScreen(nickname.toString(), role.toString())
+                            }
+                        }
                     }
-
-                }
-                2 -> {
-
                 }
             }
-
         }
     }
 }
@@ -351,5 +402,28 @@ fun ChatRoomItem(roomId: String, roomName: String, owner: String){
             Spacer(modifier = Modifier.height(4.dp)) // 添加一些间隔
             Text(text = "Instructor: $owner", style = MaterialTheme.typography.bodyMedium)
         }
+    }
+}
+@Composable
+fun UserInfoScreen(nickname: String, role: String) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp), // 设置边距
+        verticalArrangement = Arrangement.Top, // 垂直居中
+        horizontalAlignment = Alignment.Start // 水平居中
+    ) {
+        // 显示用户昵称
+        Text(
+            text = "Nickname: ${nickname}",
+            style = MaterialTheme.typography.bodyLarge
+        )
+
+        Spacer(modifier = Modifier.height(16.dp)) // 添加间距
+        // 显示用户角色
+        Text(
+            text = "Role: ${role}",
+            style = MaterialTheme.typography.bodyLarge
+        )
     }
 }

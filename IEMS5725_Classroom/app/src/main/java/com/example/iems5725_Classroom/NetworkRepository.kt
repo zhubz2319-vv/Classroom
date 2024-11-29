@@ -11,7 +11,6 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 
 class NetworkRepository {
-    private val baseURL = R.string.domain_name.toString()
     private val testUser = MY_USER_NAME
 
     // 模拟一个网络请求
@@ -27,13 +26,13 @@ class NetworkRepository {
         var response = buildJsonObject { }
         when (tabId) {
             0 -> {
-                response = client.get(baseURL + "get_courses/")
+                response = client.get("${BASE_URL}get_courses/")
             }
             1 -> {
-                response = client.get(baseURL + "get_chats?username=" + testUser)
+                response = client.get("${BASE_URL}get_chats?username=${testUser}")
             }
             2 -> {
-                response = client.get(baseURL + "get_info?username=" + testUser)
+                response = client.get("${BASE_URL}get_info?username=${testUser}")
             }
             else -> {}
         }
