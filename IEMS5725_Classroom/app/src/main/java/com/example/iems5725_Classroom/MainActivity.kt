@@ -1,28 +1,31 @@
 package com.example.iems5725_Classroom
 
+import MainViewModel
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
-import android.util.Log
-import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.FullyDrawnReporterOwner
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -36,6 +39,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -45,6 +49,9 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.viewmodel.viewModelFactory
 import com.google.firebase.FirebaseApp
 import com.google.firebase.messaging.FirebaseMessaging
 import io.ktor.client.HttpClient
@@ -56,25 +63,22 @@ import io.ktor.client.features.logging.Logging
 import io.ktor.client.request.get
 import io.ktor.client.request.post
 import io.ktor.http.contentType
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
-import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.int
-import kotlinx.serialization.json.jsonArray
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import com.example.iems5725_Classroom.ui.theme.IEMS5725_ClassTheme
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.decodeFromJsonElement
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 
-const val BASE_URL = "http://34.150.37.253:55722/"
+
 const val MY_USER_ID = 1155229615
-const val MY_USER_NAME = "Louis"
+const val MY_USER_NAME = "test"
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -83,6 +87,9 @@ class MainActivity : ComponentActivity() {
         requestNotificationPermission()
         FirebaseApp.initializeApp(this)
         createNotificationChannel()
+        val networkRepository = NetworkRepository()
+        val viewModelFactory = MainViewModelFactory(networkRepository)
+        val viewModel = ViewModelProvider(this, viewModelFactory).get(MainViewModel::class.java)
 
 //        CoroutineScope(Dispatchers.IO).launch {
 //            val result = getResultFromApi(BASE_URL + "check_token/?user_id=" + MY_USER_ID)
@@ -190,16 +197,15 @@ data class TokenMessage(val token: String,
 @OptIn(ExperimentalMaterial3Api::class)
 @Preview
 @Composable
-fun ScaffoldUI(
-) {
+fun ScaffoldUI() {
+    val viewModel: MainViewModel = viewModel()
     val context = LocalContext.current
-    var rooms by remember { mutableStateOf(buildJsonObject { })}
 //    LaunchedEffect(Unit) {
 //        rooms = withContext(Dispatchers.IO) {
 //            getResultFromApi(BASE_URL + "get_chatrooms/")
 //        }
 //    }
-
+    // 当 selectedTab 改变时，启动网络请求
     Scaffold(
         topBar = {
             TopAppBar(
@@ -229,7 +235,7 @@ fun ScaffoldUI(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         IconButton(
-                            onClick = { /* do something */ },
+                            onClick = { viewModel.fetchTabData(0) },
                             modifier = Modifier.size(40.dp)
                         ) {
 
@@ -239,7 +245,7 @@ fun ScaffoldUI(
                             )
                         }
                         IconButton(
-                            onClick = { /* do something */ },
+                            onClick = { viewModel.fetchTabData(1) },
                             modifier = Modifier.size(40.dp)
                         ) {
                             Icon(
@@ -248,7 +254,7 @@ fun ScaffoldUI(
                             )
                         }
                         IconButton(
-                            onClick = { /* do something */ },
+                            onClick = { viewModel.fetchTabData(2) },
                             modifier = Modifier.size(40.dp)
                         ) {
                             Icon(
@@ -263,88 +269,87 @@ fun ScaffoldUI(
         },
         modifier = Modifier.fillMaxSize()
     ) { innerPadding ->
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 60.dp)
-        ){
-            Column(
-                modifier = Modifier
-                    .padding(innerPadding)
-                    .fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                // if "rooms" is empty, a loading indicator will be shown
-                if (rooms.values.isEmpty()) {
-                    Box(
-                        modifier = Modifier.fillMaxSize()
-                    ){
-                        CircularProgressIndicator(
-                            modifier = Modifier.align(Alignment.Center)
-                        )
-                    }
-                    // get all rooms from "rooms" and show them as button
-                } else {
-                    val dataArray = rooms["data"]?.jsonArray
+        Column(
+            modifier = Modifier.fillMaxSize()
+                .padding(innerPadding)
+        ) {
+            when (viewModel.selectedTab.value){
+                0 -> {
+                    val dataArray = viewModel.content.value["course"]?.jsonArray
                     dataArray?.forEach { element ->
                         val dataObject = element.jsonObject
-                        val id = dataObject["id"]?.jsonPrimitive?.int
-                        val name = dataObject["name"]?.jsonPrimitive?.content
-                        Button(
-                            modifier = Modifier
-                                .padding()
-                                .fillMaxWidth(0.5f),
-                            onClick = {
-
-                            }
-                        ) {
-                            Text(text = name.toString())
-                        }
+                        val courseName = dataObject["course_name"]?.jsonPrimitive?.content
+                        val courseCode = dataObject["course_code"]?.jsonPrimitive?.content
+                        val instructor = dataObject["instructor"]?.jsonPrimitive?.content
+                        val studentsArray = dataObject["students"]?.jsonArray
+                        val student: List<String> =studentsArray?.map {
+                            Json.decodeFromJsonElement<String>(it)
+                        } ?: emptyList()
+                        CourseItem(courseName.toString(), courseCode.toString(),instructor.toString(),student)
                     }
                 }
-                Button(
-                    onClick = {
-                        FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
-                            if (!task.isSuccessful) {
-                                Toast.makeText(context,"no token",Toast.LENGTH_SHORT).show()
-                                return@addOnCompleteListener
-                            }
-
-                            val token = task.result
-                            Toast.makeText(context,"FCM Token: $token",Toast.LENGTH_SHORT).show()
-                            Log.d("FCM Token", token)
-                        }
+                1 -> {
+                    val dataArray = viewModel.content.value["rooms"]?.jsonArray
+                    dataArray?.forEach { element ->
+                        val dataObject = element.jsonObject
+                        val roomId = dataObject["room_id"]?.jsonPrimitive?.content
+                        val roomName = dataObject["room_name"]?.jsonPrimitive?.content
+                        val owner = dataObject["owner"]?.jsonPrimitive?.content
+                        ChatRoomItem(roomId.toString(), roomName.toString(),owner.toString())
                     }
-                ) {
-                    Text(text = "test")
+
                 }
+                2 -> {
 
-                Button(
-                    onClick = {
-                        // 删除现有令牌
-                        FirebaseMessaging.getInstance().deleteToken().addOnCompleteListener { task ->
-                            if (task.isSuccessful) {
-                                FirebaseMessaging.getInstance().token.addOnCompleteListener { newTokenTask ->
-                                    if (newTokenTask.isSuccessful) {
-                                        val newToken = newTokenTask.result
-                                        Log.d("New FCM Token", newToken)
-                                        // 你可以将新令牌发送到服务器或进行其他操作
-                                    } else {
-                                        Log.e("Token Error", "Failed to get new token")
-                                    }
-                                }
-                            } else {
-                                Log.e("Token Error", "Failed to delete token")
-                            }
-                        }
-
-                    }
-                ) {
-                    Text(text = "update")
                 }
-
             }
+
+        }
+    }
+}
+@Composable
+fun CourseItem(courseName: String, courseCode: String, instructor: String, students: List<String>){
+    Button(
+        onClick = { /* 可以根据需要实现按钮点击事件 */ },
+        modifier = Modifier
+            .fillMaxWidth() // 使按钮占满宽度
+            .padding(8.dp) // 为按钮添加内边距
+    ) {
+        // Column 用于垂直排列文本
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(8.dp), // 为 Column 添加内边距
+            horizontalAlignment = Alignment.CenterHorizontally // 内容居中
+        ) {
+            Text(text = "Course Name: $courseName", style = MaterialTheme.typography.bodyLarge)
+            Spacer(modifier = Modifier.height(4.dp)) // 添加一些间隔
+            Text(text = "Course Code: $courseCode", style = MaterialTheme.typography.bodyMedium)
+            Spacer(modifier = Modifier.height(4.dp)) // 添加一些间隔
+            Text(text = "Instructor: $instructor", style = MaterialTheme.typography.bodyMedium)
+        }
+    }
+}
+@Composable
+fun ChatRoomItem(roomId: String, roomName: String, owner: String){
+    Button(
+        onClick = { /* 可以根据需要实现按钮点击事件 */ },
+        modifier = Modifier
+            .fillMaxWidth() // 使按钮占满宽度
+            .padding(8.dp) // 为按钮添加内边距
+    ) {
+        // Column 用于垂直排列文本
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(8.dp), // 为 Column 添加内边距
+            horizontalAlignment = Alignment.CenterHorizontally // 内容居中
+        ) {
+            Text(text = "Course Name: $roomId", style = MaterialTheme.typography.bodyLarge)
+            Spacer(modifier = Modifier.height(4.dp)) // 添加一些间隔
+            Text(text = "Course Code: $roomName", style = MaterialTheme.typography.bodyMedium)
+            Spacer(modifier = Modifier.height(4.dp)) // 添加一些间隔
+            Text(text = "Instructor: $owner", style = MaterialTheme.typography.bodyMedium)
         }
     }
 }
