@@ -7,11 +7,11 @@ plugins {
 }
 
 android {
-    namespace = "com.example.virtualchatroom_1155229616"
+    namespace = "com.example.iems5725_Classroom"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.example.virtualchatroom_1155229616"
+        applicationId = "com.example.iems5725_Classroom"
         minSdk = 24
         targetSdk = 34
         versionCode = 1

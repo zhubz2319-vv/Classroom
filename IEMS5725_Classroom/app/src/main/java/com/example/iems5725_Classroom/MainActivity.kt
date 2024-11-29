@@ -1,8 +1,7 @@
-package com.example.virtualchatroom_1155229616
+package com.example.iems5725_Classroom
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
-import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -14,11 +13,14 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -38,6 +40,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.app.ActivityCompat
@@ -81,16 +84,16 @@ class MainActivity : ComponentActivity() {
         FirebaseApp.initializeApp(this)
         createNotificationChannel()
 
-        CoroutineScope(Dispatchers.IO).launch {
-            val result = getResultFromApi(BASE_URL + "check_token/?user_id=" + MY_USER_ID)
-            if (result["status"]?.jsonPrimitive?.content == "ERROR") {
-                val token = getToken()
-                if (token != "nothing") {
-                    val message = TokenMessage(token, MY_USER_ID)
-                    postInfoToApi (message, BASE_URL+"post_token/")
-                }
-            }
-        }
+//        CoroutineScope(Dispatchers.IO).launch {
+//            val result = getResultFromApi(BASE_URL + "check_token/?user_id=" + MY_USER_ID)
+//            if (result["status"]?.jsonPrimitive?.content == "ERROR") {
+//                val token = getToken()
+//                if (token != "nothing") {
+//                    val message = TokenMessage(token, MY_USER_ID)
+//                    postInfoToApi (message, BASE_URL+"post_token/")
+//                }
+//            }
+//        }
         setContent {
             IEMS5725_ClassTheme {
                 ScaffoldUI()
@@ -191,11 +194,11 @@ fun ScaffoldUI(
 ) {
     val context = LocalContext.current
     var rooms by remember { mutableStateOf(buildJsonObject { })}
-    LaunchedEffect(Unit) {
-        rooms = withContext(Dispatchers.IO) {
-            getResultFromApi(BASE_URL + "get_chatrooms/")
-        }
-    }
+//    LaunchedEffect(Unit) {
+//        rooms = withContext(Dispatchers.IO) {
+//            getResultFromApi(BASE_URL + "get_chatrooms/")
+//        }
+//    }
 
     Scaffold(
         topBar = {
@@ -215,6 +218,47 @@ fun ScaffoldUI(
                         )
                     }
                 },
+            )
+        },
+        bottomBar = {
+            BottomAppBar(
+                actions = {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        IconButton(
+                            onClick = { /* do something */ },
+                            modifier = Modifier.size(40.dp)
+                        ) {
+
+                            Icon(
+                                painter = painterResource(R.drawable.courses),
+                                contentDescription = "Localized description"
+                            )
+                        }
+                        IconButton(
+                            onClick = { /* do something */ },
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.study_group),
+                                contentDescription = "Localized description",
+                            )
+                        }
+                        IconButton(
+                            onClick = { /* do something */ },
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.my_info),
+                                contentDescription = "Localized description",
+                            )
+                        }
+                    }
+                },
+
             )
         },
         modifier = Modifier.fillMaxSize()

@@ -1,0 +1,67 @@
+{
+  "project_info": {
+    "project_number": "327928949472",
+    "project_id": "iems5722-chatroom",
+    "storage_bucket": "iems5722-chatroom.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:327928949472:android:62815aa364ab7e90ff7e85",
+        "android_client_info": {
+          "package_name": "com.example.iems5725_Classroom"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyClrMMpfRI0HFZUb_GTaR3SUHzEu3v5GPc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:327928949472:android:493d4932f538dd50ff7e85",
+        "android_client_info": {
+          "package_name": "com.example.virtualchatroom_1155229616"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyClrMMpfRI0HFZUb_GTaR3SUHzEu3v5GPc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:327928949472:android:01332d3760748782ff7e85",
+        "android_client_info": {
+          "package_name": "hk.edu.cuhk.ie.louissandbox"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyClrMMpfRI0HFZUb_GTaR3SUHzEu3v5GPc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
