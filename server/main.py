@@ -266,3 +266,11 @@ async def download_file(file_id: str = None):
     if file is None:
         return JSONResponse(content={"status": "fail", "message": "File not found"})
     return StreamingResponse(file, media_type=file.content_type)
+
+@app.post("/submit_fcm_token")
+async def submit_fcm_token(request: Request):
+    data = await request.json()
+    username = data["username"]
+    token = data["token"]
+    await database[TOKEN_COLLECTION].update_one({"username": username}, {"$set": {"token": token}}, upsert=True)
+    return JSONResponse(content={"status": "success", "message": "FCM token submitted"})
