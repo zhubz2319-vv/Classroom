@@ -3,6 +3,7 @@ package com.example.iems5725_Classroom
 import MainViewModel
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -11,6 +12,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.FullyDrawnReporterOwner
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -100,7 +102,7 @@ class MainActivity : ComponentActivity() {
         val networkRepository = NetworkRepository()
         val viewModelFactory = MainViewModelFactory(networkRepository)
         val viewModel = ViewModelProvider(this, viewModelFactory).get(MainViewModel::class.java)
-
+        viewModel.fetchTabData(0, "Courses")
 //        CoroutineScope(Dispatchers.IO).launch {
 //            val result = getResultFromApi(BASE_URL + "check_token/?user_id=" + MY_USER_ID)
 //            if (result["status"]?.jsonPrimitive?.content == "ERROR") {
@@ -254,9 +256,9 @@ fun ScaffoldUI() {
                             modifier = Modifier.size(40.dp)
                         ) {
                             Icon(
-                                painter = painterResource(R.drawable.courses_us),
+                                painter = painterResource(R.drawable.courses),
                                 contentDescription = "Localized description",
-                                tint = if (selectedTab == 0) Color.Blue else Color.Black
+                                tint = if (selectedTab == 0) MaterialTheme.colorScheme.primary else Color.Black
                             )
                         }
                         IconButton(
@@ -267,7 +269,7 @@ fun ScaffoldUI() {
                             Icon(
                                 painter = painterResource(R.drawable.chatgroup_us),
                                 contentDescription = "Localized description",
-                                tint = if (selectedTab == 1) Color.Blue else Color.Black
+                                tint = if (selectedTab == 1) MaterialTheme.colorScheme.primary else Color.Black
                             )
                         }
                         IconButton(
@@ -278,7 +280,8 @@ fun ScaffoldUI() {
                             Icon(
                                 painter = painterResource(R.drawable.myinfo_us),
                                 contentDescription = "Localized description",
-                                tint = if (selectedTab == 2) Color.Blue else Color.Black
+                                tint = if (selectedTab == 2) MaterialTheme.colorScheme.scrim else Color.Black,
+
                             )
                         }
                     }
@@ -293,7 +296,7 @@ fun ScaffoldUI() {
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            if (viewModel.selectedTab.value != selectedTab)
+            if (viewModel.isLoading.value)
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
@@ -329,7 +332,6 @@ fun ScaffoldUI() {
                                     )
                                 }
                             }
-
                             1 -> {
                                 val dataArray = viewModel.content.value["rooms"]?.jsonArray
                                 dataArray?.forEach { element ->
@@ -359,9 +361,18 @@ fun ScaffoldUI() {
     }
 }
 @Composable
-fun CourseItem(courseName: String, courseCode: String, instructor: String, students: List<String>){
+fun CourseItem(courseName: String, courseCode: String, instructor: String, students: List<String>) {
+//    val context = LocalContext.current
+    val isExpanded = remember { mutableStateOf(false) }
     Button(
-        onClick = { /* 可以根据需要实现按钮点击事件 */ },
+        onClick = {
+            isExpanded.value = !isExpanded.value
+//            val intent = Intent(context, CourseActivity::class.java).apply {
+//                putExtra("course_name", courseName)
+//                putExtra("course_code", courseCode)
+//            }
+//            context.startActivity(intent)
+        },
         modifier = Modifier
             .fillMaxWidth() // 使按钮占满宽度
             .padding(8.dp) // 为按钮添加内边距
@@ -378,6 +389,52 @@ fun CourseItem(courseName: String, courseCode: String, instructor: String, stude
             Text(text = "Course Code: $courseCode", style = MaterialTheme.typography.bodyMedium)
             Spacer(modifier = Modifier.height(4.dp)) // 添加一些间隔
             Text(text = "Instructor: $instructor", style = MaterialTheme.typography.bodyMedium)
+        }
+    }
+    AnimatedVisibility(visible = isExpanded.value) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(8.dp), // 为 Column 添加内边距
+            horizontalAlignment = Alignment.CenterHorizontally // 内容居中
+        ) {
+            Row(
+                horizontalArrangement = Arrangement.SpaceEvenly,
+            ) {
+                // 展开后的菜单项，可以根据需求展示不同的内容
+                Button(
+                    onClick = {
+
+                    }
+                ) {
+                    Text(text = "Announcement", style = MaterialTheme.typography.bodyLarge)
+                }
+                Button(
+                    onClick = {
+
+                    }
+                ) {
+                    Text(text = "Assignment", style = MaterialTheme.typography.bodyLarge)
+                }
+            }
+            Row(
+                horizontalArrangement = Arrangement.SpaceEvenly,
+            ) {
+                Button(
+                    onClick = {
+
+                    }
+                ) {
+                    Text(text = "Content", style = MaterialTheme.typography.bodyLarge)
+                }
+                Button(
+                    onClick = {
+
+                    }
+                ) {
+                    Text(text = "Chat Group", style = MaterialTheme.typography.bodyLarge)
+                }
+            }
         }
     }
 }

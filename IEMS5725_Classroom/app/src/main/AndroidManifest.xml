@@ -26,6 +26,9 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity
+            android:name=".CourseActivity">
+        </activity>
 <!--        <service-->
 <!--            android:name=".MyFirebaseMessagingService"-->
 <!--            android:exported="false">-->
