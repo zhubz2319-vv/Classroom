@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request, UploadFile, File
+from fastapi import FastAPI, Request, UploadFile, File, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.encoders import jsonable_encoder
 from datetime import datetime
@@ -6,8 +6,10 @@ import pytz
 from bson import ObjectId
 import gridfs
 from config import *
+from util import ConnectionManager
 
 app = FastAPI()
+manager = ConnectionManager()
 
 @app.get("/")
 async def root():
@@ -250,6 +252,7 @@ async def send_message(request: Request):
     file_id = data.get("file_id", "")
     time = datetime.now(tz=pytz.timezone('Asia/Hong_Kong')).strftime("%Y-%m-%d %H:%M:%S")
     await database[MESSAGES_COLLECTION].insert_one({"room_code": room_code, "sender": sender, "message": message, "time": time, "file_id": file_id})
+    await manager.broadcast(room_code, {"sender": sender, "message": message, "time": time, "file_id": file_id})
     return JSONResponse(content={"status": "success", "message": "Message sent"})
 
 @app.post("/upload_file")
@@ -266,3 +269,22 @@ async def download_file(file_id: str = None):
     if file is None:
         return JSONResponse(content={"status": "fail", "message": "File not found"})
     return StreamingResponse(file, media_type=file.content_type)
+
+@app.post("/submit_fcm_token")
+async def submit_fcm_token(request: Request):
+    data = await request.json()
+    username = data["username"]
+    token = data["token"]
+    await database[TOKEN_COLLECTION].update_one({"username": username}, {"$set": {"token": token}}, upsert=True)
+    return JSONResponse(content={"status": "success", "message": "FCM token submitted"})
+
+@app.websocket("/ws/{room_code}")
+async def websocket_endpoint(websocket: WebSocket, room_code: str):
+    await manager.connect(room_code, websocket)
+    try:
+        while True:
+            message = await websocket.receive_json()
+            time = datetime.now(tz=pytz.timezone('Asia/Hong_Kong')).strftime("%Y-%m-%d %H:%M:%S")
+            await manager.broadcast(room_code, {"sender": message["sender"], "message": message["message"], "time": time, "file_id": message.get("file_id", None)})
+    except WebSocketDisconnect:
+        manager.disconnect(room_code, websocket)
