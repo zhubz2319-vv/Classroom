@@ -6,7 +6,7 @@ import pytz
 from bson import ObjectId
 import gridfs
 from config import *
-from util import ConnectionManager
+from util import *
 
 app = FastAPI()
 manager = ConnectionManager()
@@ -16,22 +16,32 @@ async def root():
     return {"message": "Hello World"}
 
 @app.post("/login")
-async def login(request: Request):
-    data = await request.json()
-    username = data["username"]
-    password = data["password"]
+async def login(request: LoginRequest):
+    username = request.username
+    password = request.password
     user = await database[USER_COLLECTION].find_one({"username": username, "password": password})
     if user is None:
         return JSONResponse(content={"status": "fail", "message": "Invalid username or password"})
-    return JSONResponse(content={"status": "success", "message": "Login successful", "nickname": user["nickname"]})
+    token = create_jwt_token(username)
+    return JSONResponse(content={"status": "success", "message": "Login successful", "nickname": user["nickname"], "token": token})
+
+@app.get("/auth")
+async def auth(credentials: HTTPAuthorizationCredentials = Security(security)):
+    data = verify_jwt_token(credentials)
+    return JSONResponse(content={"status": "success", "message": "Authentication successful", "username": data})
+
+@app.post("/refresh")
+async def refresh_token(credentials: HTTPAuthorizationCredentials = Security(security)):
+    data = verify_jwt_token(credentials)
+    token = create_jwt_token(data)
+    return JSONResponse(content={"status": "success", "message": "Token refreshed", "token": token})
 
 @app.post("/register")
-async def register(request: Request):
-    data = await request.json()
-    username = data["username"]
-    password = data["password"]
-    security_answer = data["security_answer"]
-    auth_code = data.get("auth_code", None)
+async def register(request: RegisterRequest):
+    username = request.username
+    password = request.password
+    security_answer = request.security_answer
+    auth_code = request.auth_code
     nickname = username # default nickname is username
     if auth_code is not None: # then register as admin
         if auth_code != AUTH_TOKEN:
@@ -67,13 +77,12 @@ async def get_role(username: str = None):
     return JSONResponse(content={"status": "success", "message": "Role retrieved", "role": user["role"]})
 
 @app.post("/change_info")
-async def change_info(request: Request):
-    data = await request.json()
-    username = data["username"]
-    old_password = data.get("old_password", None)
-    new_password = data.get("new_password", None)
-    security_answer = data.get("security_answer", None)
-    nickname = data.get("nickname", None)
+async def change_info(request: ChangeInfoRequest):
+    username = request.username
+    old_password = request.old_password
+    new_password = request.new_password
+    security_answer = request.security_answer
+    nickname = request.nickname
     user = await database[USER_COLLECTION].find_one({"username": username})
     if user is None:
         return JSONResponse(content={"status": "fail", "message": "User not found"})
@@ -122,15 +131,14 @@ async def get_courseinfo(course_code: str = None, section: str = None):
     return JSONResponse(content={"status": "success", "message": "Course info retrieved", "infos": infos})
 
 @app.post("/add_courseinfo")
-async def add_courseinfo(request: Request):
-    data = await request.json()
-    course_code = data["course_code"]
-    section = data["section"]
-    username = data["username"]
-    title = data["title"]
-    body = data["body"]
+async def add_courseinfo(request: InfoRequest):
+    username = request.username
+    course_code = request.course_code
+    section = request.section
+    title = request.title
+    body = request.body
+    file_id = request.file_id
     time = datetime.now(tz=pytz.timezone('Asia/Hong_Kong')).strftime("%Y-%m-%d %H:%M:%S")
-    file_id = data.get("file_id", "")
     course = await database[COURSE_COLLECTION].find_one({"course_code": course_code})
     if course["instructor"] != username:
         return JSONResponse(content={"status": "fail", "message": "Only course instructor can modify course info"})
@@ -142,22 +150,19 @@ async def add_courseinfo(request: Request):
     return JSONResponse(content={"status": "success", "message": "Course info added"})
 
 @app.post("/select_course")
-async def select_course(request: Request):
-    data = await request.json()
-    action = data["action"]
-    course_code = data["course_code"]
-    username = data["username"]
+async def select_course(request: AddDropRequest):
+    course_code = request.course_code
+    username = request.username
+    action = request.action
     if action is None:
         return JSONResponse(content={"status": "fail", "message": "Action not specified"})
     if action == "add":
         await database[COURSE_COLLECTION].update_one({"course_code": course_code}, {"$addToSet": {"students": username}})
         await database[CHATS_COLLECTION].update_one({"room_code": course_code}, {"$addToSet": {"users": username}})
-        #await database[COURSESELECT_COLLECTION].insert_one({"course_code": course_code, "username": username})
         return JSONResponse(content={"status": "success", "message": "Course added"})
     elif action == "drop":
         await database[COURSE_COLLECTION].update_one({"course_code": course_code}, {"$pull": {"students": username}})
         await database[CHATS_COLLECTION].update_one({"room_code": course_code}, {"$pull": {"users": username}})
-        #await database[COURSESELECT_COLLECTION].delete_one({"course_code": course_code, "username": username})
         return JSONResponse(content={"status": "success", "message": "Course dropped"})
     return JSONResponse(content={"status": "fail", "message": "Invalid action"})
 
@@ -188,11 +193,10 @@ async def get_chats(username: str = None):
     return JSONResponse(content={"status": "success", "message": "Chats retrieved", "rooms": rooms})
 
 @app.post("/create_chat")
-async def create_chat(request: Request):
-    data = await request.json()
-    room_code = data["room_code"]
-    room_name = data["room_name"]
-    username = data["username"]
+async def create_chat(request: NewChatRequest):
+    username = request.username
+    room_code = request.room_code
+    room_name = request.room_name
     chat = await database[CHATS_COLLECTION].find_one({"room_code": room_code})
     if chat is not None:
         return JSONResponse(content={"status": "fail", "message": "Chat already exists"})
@@ -211,11 +215,10 @@ async def get_users(room_code: str = None):
     return JSONResponse(content={"status": "success", "message": "Members retrieved", "users": users})
 
 @app.post("/edit_user")
-async def edit_user(request: Request):
-    data = await request.json()
-    action = data.get("action", None)
-    room_code = data["room_code"]
-    username = data["username"]
+async def edit_user(request: EditUserRequest):
+    username = request.username
+    room_code = request.room_code
+    action = request.action
     course = await database[COURSE_COLLECTION].find_one({"course_code": room_code})
     if course is not None:
         return JSONResponse(content={"status": "fail", "message": "Cannot edit user in course chat"})
@@ -244,12 +247,11 @@ async def get_messages(room_code: str = None):
     return JSONResponse(content={"status": "success", "message": "Messages retrieved", "messages": messages})
 
 @app.post("/send_message")
-async def send_message(request: Request):
-    data = await request.json()
-    room_code = data["room_code"]
-    sender = data["sender"]
-    message = data["message"]
-    file_id = data.get("file_id", "")
+async def send_message(request: MessageRequest):
+    room_code = request.room_code
+    sender = request.sender
+    message = request.message
+    file_id = request.file_id
     time = datetime.now(tz=pytz.timezone('Asia/Hong_Kong')).strftime("%Y-%m-%d %H:%M:%S")
     await database[MESSAGES_COLLECTION].insert_one({"room_code": room_code, "sender": sender, "message": message, "time": time, "file_id": file_id})
     await manager.broadcast(room_code, {"sender": sender, "message": message, "time": time, "file_id": file_id})
@@ -285,6 +287,7 @@ async def websocket_endpoint(websocket: WebSocket, room_code: str):
         while True:
             message = await websocket.receive_json()
             time = datetime.now(tz=pytz.timezone('Asia/Hong_Kong')).strftime("%Y-%m-%d %H:%M:%S")
+            await database[MESSAGES_COLLECTION].insert_one({"room_code": room_code, "sender": message["sender"], "message": message["message"], "time": time, "file_id": message.get("file_id", None)})
             await manager.broadcast(room_code, {"sender": message["sender"], "message": message["message"], "time": time, "file_id": message.get("file_id", None)})
     except WebSocketDisconnect:
         manager.disconnect(room_code, websocket)
