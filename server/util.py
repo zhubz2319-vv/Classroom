@@ -36,11 +36,62 @@ class LoginRequest(BaseModel):
     username: str
     password: str
 
+class LoginResponse(BaseModel):
+    status: str
+    message: str
+    token: str
+
+class AuthResponse(BaseModel):
+    status: str
+    message: str
+    username: str
+
+class RefreshResponse(BaseModel):
+    status: str
+    message: str
+    new_token: str
+
 class RegisterRequest(BaseModel):
     username: str
     password: str
     security_answer: str
     auth_code: Optional[str] = None
+
+class RegisterResponse(BaseModel):
+    status: str
+    message: str
+    token: str
+
+class UserInfoResponse(BaseModel):
+    status: str
+    message: str
+    nickname: str
+    role: str
+
+class Course(BaseModel):
+    course_name: str
+    course_code: str
+    instructor: str
+    students: List[str]
+
+class CourseInfo(BaseModel):
+    course_code: str
+    section: str
+    by: str
+    time: str
+    title: str
+    body: str
+    file_id: Optional[str] = None
+
+class AllCoursesResponse(BaseModel):
+    status: str
+    message: str
+    courses: List[Course]
+
+class CourseInfoResponse(BaseModel):
+    status: str
+    message: str
+    infos: List[CourseInfo]
 
 class ChangeInfoRequest(BaseModel):
     username: str
@@ -62,6 +113,22 @@ class InfoRequest(BaseModel):
     body: str
     file_id: Optional[str] = None
 
+class Room(BaseModel):
+    room_code: str
+    room_name: str
+    owner: str
+    users: List[str]
+
+class RoomsResponse(BaseModel):
+    status: str
+    message: str
+    rooms: List[Room]
+
+class RoomUserResponse(BaseModel):
+    status: str
+    message: str
+    users: List[str]
+
 class NewChatRequest(BaseModel):
     username: str
     room_code: str
@@ -77,6 +144,30 @@ class MessageRequest(BaseModel):
     username: str
     message: str
     file_id: Optional[str] = None
+
+class Message(BaseModel):
+    sender: str
+    message: str
+    time: str
+    file_id: Optional[str] = None
+
+class MessageResponse(BaseModel):
+    status: str
+    message: str
+    messages: List[Message]
+
+class UploadFileResponse(BaseModel):
+    status: str
+    message: str
+    file_id: str
+
+class StandardResponse(BaseModel):
+    status: str
+    message: str
+
+class FCMSubmitRequest(BaseModel):
+    username: str
+    token: str
 
 security = HTTPBearer()
 

@@ -16,28 +16,28 @@ async def root():
     return {"message": "Hello World"}
 
 @app.post("/login")
-async def login(request: LoginRequest):
+async def login(request: LoginRequest) -> LoginResponse:
     username = request.username
     password = request.password
     user = await database[USER_COLLECTION].find_one({"username": username, "password": password})
     if user is None:
         return JSONResponse(content={"status": "fail", "message": "Invalid username or password"})
     token = create_jwt_token(username)
-    return JSONResponse(content={"status": "success", "message": "Login successful", "nickname": user["nickname"], "token": token})
+    return JSONResponse(content={"status": "success", "message": "Login successful", "token": token})
 
 @app.get("/auth")
-async def auth(credentials: HTTPAuthorizationCredentials = Security(security)):
+async def auth(credentials: HTTPAuthorizationCredentials = Security(security)) -> AuthResponse:
     data = verify_jwt_token(credentials)
-    return JSONResponse(content={"status": "success", "message": "Authentication successful", "username": data})
+    return JSONResponse(content={"status": "success", "message": "Authentication successful", "username": data["sub"]})
 
 @app.post("/refresh")
-async def refresh_token(credentials: HTTPAuthorizationCredentials = Security(security)):
+async def refresh_token(credentials: HTTPAuthorizationCredentials = Security(security)) -> RefreshResponse:
     data = verify_jwt_token(credentials)
     token = create_jwt_token(data)
     return JSONResponse(content={"status": "success", "message": "Token refreshed", "token": token})
 
 @app.post("/register")
-async def register(request: RegisterRequest):
+async def register(request: RegisterRequest) -> RegisterResponse:
     username = request.username
     password = request.password
     security_answer = request.security_answer
@@ -50,16 +50,18 @@ async def register(request: RegisterRequest):
         if user is not None:
             return JSONResponse(content={"status": "fail", "message": "Username already exists"})
         user = await database[USER_COLLECTION].insert_one({"username": username, "password": password, "security_answer": security_answer, "nickname": nickname, "role": "instructor"})
-        return JSONResponse(content={"status": "success", "message": "Admin registration successful", "nickname": nickname})
+        token = create_jwt_token(username)
+        return JSONResponse(content={"status": "success", "message": "Admin registration successful", "token": token})
     else: # then register as student
         user = await database[USER_COLLECTION].find_one({"username": username})
         if user is not None:
             return JSONResponse(content={"status": "fail", "message": "Username already exists"})
         user = await database[USER_COLLECTION].insert_one({"username": username, "password": password, "security_answer": security_answer, "nickname": nickname, "role": "student"})
-        return JSONResponse(content={"status": "success", "message": "Student registration successful", "nickname": nickname})
+        token = create_jwt_token(username)
+        return JSONResponse(content={"status": "success", "message": "Student registration successful", "token": token})
 
 @app.get("/get_info")
-async def get_info(username: str = None):
+async def get_info(username: str = None) -> UserInfoResponse:
     if username is None:
         return JSONResponse(content={"status": "fail", "message": "Username not specified"})
     user = await database[USER_COLLECTION].find_one({"username": username})
@@ -67,17 +69,16 @@ async def get_info(username: str = None):
         return JSONResponse(content={"status": "fail", "message": "User not found"})
     return JSONResponse(content={"status": "success", "message": "Info retrieved", "nickname": user["nickname"], "role": user["role"]})
 
-@app.get("/get_role")
-async def get_role(username: str = None):
-    if username is None:
-        return JSONResponse(content={"status": "fail", "message": "Username not specified"})
+@app.get("/get_info2")
+async def get_info(credentials: HTTPAuthorizationCredentials = Security(security)) -> UserInfoResponse:
+    username = verify_jwt_token(credentials)["sub"]
     user = await database[USER_COLLECTION].find_one({"username": username})
     if user is None:
         return JSONResponse(content={"status": "fail", "message": "User not found"})
-    return JSONResponse(content={"status": "success", "message": "Role retrieved", "role": user["role"]})
+    return JSONResponse(content={"status": "success", "message": "Info retrieved", "nickname": user["nickname"], "role": user["role"]})
 
 @app.post("/change_info")
-async def change_info(request: ChangeInfoRequest):
+async def change_info(request: ChangeInfoRequest) -> StandardResponse:
     username = request.username
     old_password = request.old_password
     new_password = request.new_password
@@ -107,19 +108,14 @@ async def change_info(request: ChangeInfoRequest):
     return JSONResponse(content={"status": "fail", "message": "Invalid request"})
 
 @app.get("/get_courses")
-async def get_courses(request: Request):
+async def get_courses(request: Request) -> AllCoursesResponse:
     courses = []
-    if "course_code" in request.query_params:
-        course_code = request.query_params["course_code"]
-        async for course in database[COURSE_COLLECTION].find({"course_code": course_code}):
-            courses.append({"course_name": course["course_name"], "course_code": course["course_code"], "instructor": course["instructor"], "students": course["students"]})
-        return JSONResponse(content={"status": "success", "message": "Courses retrieved", "courses": courses})
     async for course in database[COURSE_COLLECTION].find():
         courses.append({"course_name": course["course_name"], "course_code": course["course_code"], "instructor": course["instructor"], "students": course["students"]})
     return JSONResponse(content={"status": "success", "message": "Courses retrieved", "courses": courses})
 
 @app.get("/get_courseinfo")
-async def get_courseinfo(course_code: str = None, section: str = None):
+async def get_courseinfo(course_code: str = None, section: str = None) -> CourseInfoResponse:
     if course_code is None or section is None:
         return JSONResponse(content={"status": "fail", "message": "Course code or section not specified"})
     infos = []
@@ -131,7 +127,7 @@ async def get_courseinfo(course_code: str = None, section: str = None):
     return JSONResponse(content={"status": "success", "message": "Course info retrieved", "infos": infos})
 
 @app.post("/add_courseinfo")
-async def add_courseinfo(request: InfoRequest):
+async def add_courseinfo(request: InfoRequest) -> StandardResponse:
     username = request.username
     course_code = request.course_code
     section = request.section
@@ -150,7 +146,7 @@ async def add_courseinfo(request: InfoRequest):
     return JSONResponse(content={"status": "success", "message": "Course info added"})
 
 @app.post("/select_course")
-async def select_course(request: AddDropRequest):
+async def select_course(request: AddDropRequest) -> StandardResponse:
     course_code = request.course_code
     username = request.username
     action = request.action
@@ -184,7 +180,7 @@ async def activity(username: str = None):
     return JSONResponse(content={"status": "success", "message": "Activities retrieved", "activities": activities})
 
 @app.get("/get_chats")
-async def get_chats(username: str = None):
+async def get_chats(username: str = None) -> RoomsResponse:
     if username is None:
         return JSONResponse(content={"status": "fail", "message": "Username not specified"})
     rooms = []
@@ -193,7 +189,7 @@ async def get_chats(username: str = None):
     return JSONResponse(content={"status": "success", "message": "Chats retrieved", "rooms": rooms})
 
 @app.post("/create_chat")
-async def create_chat(request: NewChatRequest):
+async def create_chat(request: NewChatRequest) -> StandardResponse:
     username = request.username
     room_code = request.room_code
     room_name = request.room_name
@@ -204,7 +200,7 @@ async def create_chat(request: NewChatRequest):
     return JSONResponse(content={"status": "success", "message": "Chat created"})
 
 @app.get("/get_users")
-async def get_users(room_code: str = None):
+async def get_users(room_code: str = None) -> RoomUserResponse:
     if room_code is None:
         return JSONResponse(content={"status": "fail", "message": "Room code not specified"})
     users = []
@@ -215,7 +211,7 @@ async def get_users(room_code: str = None):
     return JSONResponse(content={"status": "success", "message": "Members retrieved", "users": users})
 
 @app.post("/edit_user")
-async def edit_user(request: EditUserRequest):
+async def edit_user(request: EditUserRequest) -> StandardResponse:
     username = request.username
     room_code = request.room_code
     action = request.action
@@ -238,7 +234,7 @@ async def edit_user(request: EditUserRequest):
     return JSONResponse(content={"status": "fail", "message": "Invalid action"})
 
 @app.get("/get_messages")
-async def get_messages(room_code: str = None):
+async def get_messages(room_code: str = None) -> MessageResponse:
     if room_code is None:
         return JSONResponse(content={"status": "fail", "message": "Room code not specified"})
     messages = []
@@ -247,7 +243,7 @@ async def get_messages(room_code: str = None):
     return JSONResponse(content={"status": "success", "message": "Messages retrieved", "messages": messages})
 
 @app.post("/send_message")
-async def send_message(request: MessageRequest):
+async def send_message(request: MessageRequest) -> StandardResponse:
     room_code = request.room_code
     sender = request.sender
     message = request.message
@@ -258,13 +254,13 @@ async def send_message(request: MessageRequest):
     return JSONResponse(content={"status": "success", "message": "Message sent"})
 
 @app.post("/upload_file")
-async def upload_file(file: UploadFile):
+async def upload_file(file: UploadFile = File(...)) -> UploadFileResponse:
     contents = await file.read()
     file_id = await fs.upload_from_stream(file.filename, contents)
     return JSONResponse(content={"status": "success", "message": "File uploaded", "file_id": str(file_id)})
 
 @app.get("/download_file")
-async def download_file(file_id: str = None):
+async def download_file(file_id: str = None) -> StreamingResponse:
     if file_id is None:
         return JSONResponse(content={"status": "fail", "message": "File ID not specified"})
     file = await fs.open_download_stream(ObjectId(file_id))
@@ -273,10 +269,9 @@ async def download_file(file_id: str = None):
     return StreamingResponse(file, media_type=file.content_type)
 
 @app.post("/submit_fcm_token")
-async def submit_fcm_token(request: Request):
-    data = await request.json()
-    username = data["username"]
-    token = data["token"]
+async def submit_fcm_token(request: FCMSubmitRequest) -> StandardResponse:
+    username = request.username
+    token = request.token
     await database[TOKEN_COLLECTION].update_one({"username": username}, {"$set": {"token": token}}, upsert=True)
     return JSONResponse(content={"status": "success", "message": "FCM token submitted"})
 
