@@ -64,8 +64,10 @@ import kotlinx.serialization.json.put
 import java.text.SimpleDateFormat
 import java.util.Date
 import android.util.Log
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.serialization.Serializable
 import okhttp3.*
 import okio.ByteString
 import java.util.concurrent.TimeUnit
@@ -77,62 +79,30 @@ class ChatGroupActivity : ComponentActivity(){
         val sharedPref = getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
         val username = sharedPref.getString("username", "DefaultUser")
         val networkRepository = NetworkRepository()
-        val viewModelFactory = MainViewModelFactory(networkRepository)
-        val viewModel = ViewModelProvider(this, viewModelFactory).get(MainViewModel::class.java)
 
         setContent {
             ContrastAwareReplyTheme {
                 val roomCode = intent.getStringExtra("room_code")
                 val roomName = intent.getStringExtra("room_name")
+                val viewModelFactory = ChatViewModelFactory(networkRepository, roomCode.toString())
+                val viewModel = ViewModelProvider(this, viewModelFactory).get(ChatViewModel::class.java)
                 viewModel.fetchMessage(roomCode.toString())
-                ChatRoomUI(username, roomCode.toString(), roomName.toString())
-            }
-        }
-
-
-    }
-}
-
-
-class ChatActivity : ComponentActivity() {
-    private val viewModel: ChatViewModel by viewModels()
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
-        setContent {
-            ContrastAwareReplyTheme {
-                val id = intent.getStringExtra("id")
-                val chatRoomName = intent.getStringExtra("name")
-                if (id != null) {
-                    ChatRoomUI(id.toInt(), chatRoomName.toString(),viewModel)
-                }
+                ChatRoomUI(username.toString(), roomCode.toString(), roomName.toString())
             }
         }
     }
     override fun onResume() {
         super.onResume()
-        val id = intent.getStringExtra("id")?.toIntOrNull()
-        if (id != null) {
-            viewModel.loadMessages(id)
-        }
-    }
-
-}
-
-class ChatViewModel : ViewModel() {
-    var messages by mutableStateOf(buildJsonObject { })
-        private set
-
-    fun loadMessages(chatRoomId: Int) {
-        viewModelScope.launch {
-            messages = withContext(Dispatchers.IO) {
-                getResultFromApi(BASE_URL + "get_messages/?chatroom_id=${chatRoomId}")
-            }
+        val roomCode = intent.getStringExtra("room_code")
+        val networkRepository = NetworkRepository()
+        val viewModelFactory = ChatViewModelFactory(networkRepository,roomCode.toString())
+        val viewModel = ViewModelProvider(this, viewModelFactory).get(ChatViewModel::class.java)
+        if (roomCode != null) {
+            viewModel.fetchMessage(roomCode.toString())
         }
     }
 }
-
-
+@Serializable
 data class MessageItem(val sender:String,
                        val message:String,
                        val time: String,
@@ -145,12 +115,9 @@ fun ChatRoomUI(userName: String, id: String, chatRoomName: String){
 
     val context = LocalContext.current
     var inputs by remember { mutableStateOf("") }
-    var items by remember { mutableStateOf(listOf<MessageItem>()) }
-    val coroutineScope = rememberCoroutineScope()
-    val viewModel: MainViewModel = viewModel()
-    val myUserId = MY_USER_ID
-    val myUserName = MY_USER_NAME
-
+    val viewModel: ChatViewModel = viewModel()
+    val messages by viewModel.messages.observeAsState(emptyList())
+    Log.d("Messages", "Messages updated: $messages")
     Scaffold(
         topBar = {
             TopAppBar(
@@ -205,21 +172,10 @@ fun ChatRoomUI(userName: String, id: String, chatRoomName: String){
                             .padding(5.dp)
                             .weight(5f)
                     )
-                    var sendingState by remember { mutableStateOf(buildJsonObject { })}
                     IconButton(
                         onClick = {
                             if(inputs.isNotBlank()){
-                                sendingState = buildJsonObject {
-                                    put("status", "Not responding")
-                                }
-                                val message = ChatMessage(id, myUserId, myUserName, inputs)
-                                val currentTime = SimpleDateFormat("yyyy-MM-dd HH:mm").format(Date())
-                                items = items + MessageItem(myUserName, inputs, currentTime, myUserId)
-                                coroutineScope.launch {
-                                    withContext(Dispatchers.IO){
-                                        sendingState = postInfoToApi(message,BASE_URL + "send_message/")
-                                    }
-                                }
+                                viewModel.sendMessage(sender = userName, message = inputs)
                                 inputs = ""
                             }
                         },
@@ -228,44 +184,11 @@ fun ChatRoomUI(userName: String, id: String, chatRoomName: String){
                             .weight(1f)
                             .align(Alignment.CenterVertically)
                     ) {
-                        if (sendingState.values.isNotEmpty()){
-                            val status = sendingState["status"]?.jsonPrimitive?.content.toString()
-                            if(status == "Not responding"){
-                                CircularProgressIndicator(
-                                    color = Color.Black,
-                                )
-                                sendingState = buildJsonObject { }
-                            }
-                            else if (status == "OK"){
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.Send,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(30.dp)
-                                )
-                                sendingState = buildJsonObject { }
-                            } else {
-                                AlertDialog.Builder(context)
-                                    .setTitle("Network Error")
-                                    .setMessage("Error message: $status")
-                                    .setPositiveButton("OK") { dialog, _ ->
-                                        dialog.dismiss()
-                                    }
-                                    .show()
-                                inputs = items.last().message
-                                if (items.isNotEmpty()) {
-                                    items = items.toMutableList().apply { removeLast() }
-                                }
-                                sendingState = buildJsonObject { }
-                            }
-                        }
-                        else{
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.Send,
-                                contentDescription = null,
-                                modifier = Modifier.size(30.dp)
-                            )
-                            sendingState = buildJsonObject { }
-                        }
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.Send,
+                            contentDescription = null,
+                            modifier = Modifier.size(30.dp)
+                        )
                     }
                 }
             }
@@ -281,7 +204,7 @@ fun ChatRoomUI(userName: String, id: String, chatRoomName: String){
                 if (viewModel.isLoadingMessage.value) {
                     CircularProgressIndicator()
                 } else {
-                    val dataArray = viewModel.message.value["messages"]?.jsonArray
+                    val dataArray = viewModel.messageHistory.value["messages"]?.jsonArray
                     dataArray?.forEach { element ->
                         val dataObject = element.jsonObject
                         val sender = dataObject["sender"]?.jsonPrimitive?.content
@@ -293,8 +216,9 @@ fun ChatRoomUI(userName: String, id: String, chatRoomName: String){
                     }
                 }
             }
-            items(items) { (userName, messageText, sendingTime, userId) ->
-                MessageBox(userName, messageText, sendingTime, userId == myUserId)
+            items(messages) { (sender, message, time) ->
+                Log.d("TAG", "items updated: ${sender}:${message}:${time}")
+                MessageBox(sender, message, time, sender == userName)
             }
         }
     }

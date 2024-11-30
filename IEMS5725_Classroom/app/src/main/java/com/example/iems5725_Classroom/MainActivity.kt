@@ -108,8 +108,6 @@ const val BASE_URL = "https://chat.lamitt.com/"
 
 
 class MainActivity : ComponentActivity() {
-
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -440,7 +438,7 @@ fun ChatRoomItem(roomId: String, roomName: String, owner: String){
     val context = LocalContext.current
     Button(
         onClick = {
-            val intent = Intent(context, CourseActivity::class.java).apply {
+            val intent = Intent(context, ChatGroupActivity::class.java).apply {
                 putExtra("room_code", roomId)
                 putExtra("room_name", roomName)
             }

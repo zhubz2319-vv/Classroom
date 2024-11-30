@@ -29,12 +29,6 @@ class MainViewModel(private val networkRepository: NetworkRepository) : ViewMode
     private val _tabName = mutableStateOf("Courses")
     val tabName: State<String> = _tabName
 
-    private val _isLoadingMessage = mutableStateOf(false)
-    val isLoadingMessage: State<Boolean> = _isLoadingMessage
-
-    private val _message = mutableStateOf(buildJsonObject { })
-    val message: MutableState<JsonObject> = _message
-
     fun fetchTabData(tabId: Int, tabName: String) {
         _tabName.value = tabName
         viewModelScope.launch {
@@ -47,38 +41,6 @@ class MainViewModel(private val networkRepository: NetworkRepository) : ViewMode
             Log.d(TAG, "Table id: ${tabId}")
         }
     }
-    fun fetchMessage(roomCode: String){
-        viewModelScope.launch {
-            _isLoadingMessage.value = true
-            val data = networkRepository.fetchMessageByRoomCode(roomCode)
-            Log.d(TAG, "Fetched date: ${data}")
-            _message.value = data
-            _isLoadingMessage.value = false
-        }
-    }
-    private val _messages = MutableLiveData<List<MessageItem>>()
-    val messages: LiveData<List<MessageItem>> get() = _messages
 
-    private val webSocketManager = WebSocketManager("room1")
 
-    init {
-        // 连接到 WebSocket
-        webSocketManager.connect()
-
-        // 设置 WebSocket 回调，接收到新消息时更新 LiveData
-        webSocketManager.onMessageReceived = { message ->
-            val currentMessages = _messages.value.orEmpty().toMutableList()
-            currentMessages.add(message)  // 将新消息添加到现有的消息列表
-            _messages.value = currentMessages  // 更新 LiveData
-        }
-    }
-
-    fun sendMessage(sender: String, message: String) {
-        webSocketManager.sendMessage(sender, message)
-    }
-
-    override fun onCleared() {
-        super.onCleared()
-        webSocketManager.close()
-    }
 }
