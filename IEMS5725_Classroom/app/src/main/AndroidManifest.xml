@@ -27,7 +27,16 @@
             </intent-filter>
         </activity>
         <activity
-            android:name=".CourseActivity">
+            android:name=".AssignmentActivity">
+        </activity>
+        <activity
+            android:name=".AnnouncementActivity">
+        </activity>
+        <activity
+            android:name=".ContentActivity">
+        </activity>
+        <activity
+            android:name=".ChatGroupActivity">
         </activity>
 <!--        <service-->
 <!--            android:name=".MyFirebaseMessagingService"-->

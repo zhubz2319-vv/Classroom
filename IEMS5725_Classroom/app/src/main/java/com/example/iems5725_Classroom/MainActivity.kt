@@ -13,29 +13,41 @@ import androidx.activity.FullyDrawnReporterOwner
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.ZeroCornerSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults.topAppBarColors
@@ -49,16 +61,21 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.example.iems5725_Classroom.ui.theme.ContrastAwareReplyTheme
 import com.google.firebase.FirebaseApp
 import com.google.firebase.messaging.FirebaseMessaging
 import io.ktor.client.HttpClient
@@ -114,7 +131,7 @@ class MainActivity : ComponentActivity() {
 //            }
 //        }
         setContent {
-            IEMS5725_ClassTheme {
+            ContrastAwareReplyTheme {
                 ScaffoldUI()
             }
         }
@@ -364,84 +381,71 @@ fun ScaffoldUI() {
 fun CourseItem(courseName: String, courseCode: String, instructor: String, students: List<String>) {
 //    val context = LocalContext.current
     val isExpanded = remember { mutableStateOf(false) }
-    Button(
-        onClick = {
-            isExpanded.value = !isExpanded.value
-//            val intent = Intent(context, CourseActivity::class.java).apply {
-//                putExtra("course_name", courseName)
-//                putExtra("course_code", courseCode)
-//            }
-//            context.startActivity(intent)
-        },
+    val density = LocalDensity.current
+    Column (
         modifier = Modifier
-            .fillMaxWidth() // 使按钮占满宽度
-            .padding(8.dp) // 为按钮添加内边距
+            .fillMaxWidth()
+            .padding(8.dp),
     ) {
-        // Column 用于垂直排列文本
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(8.dp), // 为 Column 添加内边距
-            horizontalAlignment = Alignment.CenterHorizontally // 内容居中
+        Button(
+            onClick = {
+                isExpanded.value = !isExpanded.value
+            },
+            shape = MaterialTheme.shapes.extraSmall
         ) {
-            Text(text = "Course Name: $courseName", style = MaterialTheme.typography.bodyLarge)
-            Spacer(modifier = Modifier.height(4.dp)) // 添加一些间隔
-            Text(text = "Course Code: $courseCode", style = MaterialTheme.typography.bodyMedium)
-            Spacer(modifier = Modifier.height(4.dp)) // 添加一些间隔
-            Text(text = "Instructor: $instructor", style = MaterialTheme.typography.bodyMedium)
-        }
-    }
-    AnimatedVisibility(visible = isExpanded.value) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(8.dp), // 为 Column 添加内边距
-            horizontalAlignment = Alignment.CenterHorizontally // 内容居中
-        ) {
-            Row(
-                horizontalArrangement = Arrangement.SpaceEvenly,
+            // Column 用于垂直排列文本
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(8.dp), // 为 Column 添加内边距
+                horizontalAlignment = Alignment.CenterHorizontally // 内容居中
             ) {
-                // 展开后的菜单项，可以根据需求展示不同的内容
-                Button(
-                    onClick = {
-
-                    }
-                ) {
-                    Text(text = "Announcement", style = MaterialTheme.typography.bodyLarge)
-                }
-                Button(
-                    onClick = {
-
-                    }
-                ) {
-                    Text(text = "Assignment", style = MaterialTheme.typography.bodyLarge)
-                }
+                Text(
+                    text = "Course Name: $courseName",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontSize = 18.sp
+                )
+                Spacer(modifier = Modifier.height(4.dp)) // 添加一些间隔
+                Text(text = "Course Code: $courseCode", style = MaterialTheme.typography.bodyLarge)
+                Spacer(modifier = Modifier.height(4.dp)) // 添加一些间隔
+                Text(text = "Instructor: $instructor", style = MaterialTheme.typography.bodyMedium)
             }
-            Row(
-                horizontalArrangement = Arrangement.SpaceEvenly,
+        }
+        AnimatedVisibility(
+            visible = isExpanded.value,
+            enter = slideInVertically {
+                // Slide in from 40 dp from the top.
+                with(density) { -40.dp.roundToPx() }
+            } + expandVertically(
+                // Expand from the top.
+                expandFrom = Alignment.Top
+            ) + fadeIn(
+                // Fade in with the initial alpha of 0.3f.
+                initialAlpha = 0.3f
+            ),
+            exit = slideOutVertically() + shrinkVertically() + fadeOut()
+        ) {
+            Surface(
+                modifier = Modifier.fillMaxSize(),
+                color = Color.LightGray
             ) {
-                Button(
-                    onClick = {
-
-                    }
-                ) {
-                    Text(text = "Content", style = MaterialTheme.typography.bodyLarge)
-                }
-                Button(
-                    onClick = {
-
-                    }
-                ) {
-                    Text(text = "Chat Group", style = MaterialTheme.typography.bodyLarge)
-                }
+                CourseOption(courseName, courseCode)
             }
         }
     }
+
 }
 @Composable
 fun ChatRoomItem(roomId: String, roomName: String, owner: String){
+    val context = LocalContext.current
     Button(
-        onClick = { /* 可以根据需要实现按钮点击事件 */ },
+        onClick = {
+            val intent = Intent(context, CourseActivity::class.java).apply {
+                putExtra("room_code", roomId)
+                putExtra("room_name", roomName)
+            }
+            context.startActivity(intent)
+        },
         modifier = Modifier
             .fillMaxWidth() // 使按钮占满宽度
             .padding(8.dp) // 为按钮添加内边距
@@ -482,5 +486,101 @@ fun UserInfoScreen(nickname: String, role: String) {
             text = "Role: ${role}",
             style = MaterialTheme.typography.bodyLarge
         )
+    }
+}
+
+@Composable
+fun CourseOption(courseName: String, courseCode: String){
+    val context = LocalContext.current
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally // 内容居中
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Button(
+                onClick = {
+
+                },
+                shape = RoundedCornerShape(ZeroCornerSize),
+                modifier = Modifier.fillMaxHeight()
+                    .weight(1f),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.secondary
+                )
+            ) {
+                Text(text = "Announcement", style = MaterialTheme.typography.bodyLarge)
+            }
+            Surface(
+                color = Color.White,
+                modifier = Modifier.width(5.dp)
+                    .fillMaxHeight()
+            ) {  }
+            Button(
+                onClick = {
+
+                },
+                shape = RoundedCornerShape(ZeroCornerSize),
+                modifier = Modifier.fillMaxHeight()
+                    .weight(1f),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.secondary
+                )
+            ) {
+                Text(text = "Assignment", style = MaterialTheme.typography.bodyLarge)
+            }
+        }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+        ) {
+            Button(
+                onClick = {
+
+                },
+                shape = RoundedCornerShape(ZeroCornerSize),
+                modifier = Modifier.fillMaxHeight()
+                    .weight(1f),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.secondary
+                )
+            ) {
+                Text(text = "Content", style = MaterialTheme.typography.bodyLarge)
+            }
+            Surface(
+                color = Color.White,
+                modifier = Modifier.width(5.dp)
+                    .fillMaxHeight()
+            ) {  }
+            Button(
+                onClick = {
+
+                },
+                shape = RoundedCornerShape(ZeroCornerSize),
+                modifier = Modifier.fillMaxHeight()
+                    .weight(1f),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.secondary
+                )
+            ) {
+                Text(text = "Chat Group", style = MaterialTheme.typography.bodyLarge)
+            }
+
+        }
+    }
+}
+
+@Preview
+@Composable
+fun PreviewCourseItem() {
+    MaterialTheme {
+        CourseItem(courseName = "Intro to Compose", courseCode = "CS101", instructor = "John Doe", students = listOf("Item1", "Item2", "Item3"))
     }
 }

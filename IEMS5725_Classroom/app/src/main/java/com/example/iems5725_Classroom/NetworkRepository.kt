@@ -41,8 +41,18 @@ class NetworkRepository {
     }
 
     // 你可以添加更多的网络请求函数，根据需要添加
-    suspend fun fetchAdditionalData(): String {
-
-        return "Additional Network Data"
+    suspend fun fetchMessageByRoomCode(roomCode: String): JsonObject {
+        val client = HttpClient(CIO) {
+            install(JsonFeature) {
+                serializer = KotlinxSerializer()
+            }
+            install(Logging) {
+                level = LogLevel.INFO
+            }
+        }
+        var response = buildJsonObject { }
+        response = client.get("${BASE_URL}get_messages?room_code=${roomCode}")
+        client.close()
+        return response
     }
 }
