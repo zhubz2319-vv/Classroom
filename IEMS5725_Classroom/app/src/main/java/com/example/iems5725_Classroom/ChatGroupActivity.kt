@@ -64,7 +64,9 @@ import kotlinx.serialization.json.put
 import java.text.SimpleDateFormat
 import java.util.Date
 import android.util.Log
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.livedata.observeAsState
+import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.serialization.Serializable
@@ -84,7 +86,7 @@ class ChatGroupActivity : ComponentActivity(){
             ContrastAwareReplyTheme {
                 val roomCode = intent.getStringExtra("room_code")
                 val roomName = intent.getStringExtra("room_name")
-                val viewModelFactory = ChatViewModelFactory(networkRepository, roomCode.toString())
+                val viewModelFactory = ChatViewModelFactory(networkRepository, roomCode.toString(), application)
                 val viewModel = ViewModelProvider(this, viewModelFactory).get(ChatViewModel::class.java)
                 viewModel.fetchMessage(roomCode.toString())
                 ChatRoomUI(username.toString(), roomCode.toString(), roomName.toString())
@@ -95,7 +97,7 @@ class ChatGroupActivity : ComponentActivity(){
         super.onResume()
         val roomCode = intent.getStringExtra("room_code")
         val networkRepository = NetworkRepository()
-        val viewModelFactory = ChatViewModelFactory(networkRepository,roomCode.toString())
+        val viewModelFactory = ChatViewModelFactory(networkRepository,roomCode.toString(), application)
         val viewModel = ViewModelProvider(this, viewModelFactory).get(ChatViewModel::class.java)
         if (roomCode != null) {
             viewModel.fetchMessage(roomCode.toString())
@@ -112,12 +114,17 @@ data class MessageItem(val sender:String,
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatRoomUI(userName: String, id: String, chatRoomName: String){
-
+    val listState = rememberLazyListState()
     val context = LocalContext.current
     var inputs by remember { mutableStateOf("") }
     val viewModel: ChatViewModel = viewModel()
+    val isMessageSent = viewModel.isMessageSent.observeAsState(initial = true).value
     val messages by viewModel.messages.observeAsState(emptyList())
+    val messagesLength = viewModel.messageHistory.value["messages"]?.jsonArray?.size ?: 0
     Log.d("Messages", "Messages updated: $messages")
+    LaunchedEffect(messages.size) {
+        listState.animateScrollToItem(messages.size + messagesLength - 1)
+    }
     Scaffold(
         topBar = {
             TopAppBar(
@@ -184,11 +191,15 @@ fun ChatRoomUI(userName: String, id: String, chatRoomName: String){
                             .weight(1f)
                             .align(Alignment.CenterVertically)
                     ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.Send,
-                            contentDescription = null,
-                            modifier = Modifier.size(30.dp)
-                        )
+                        if (isMessageSent) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.Send,
+                                contentDescription = null,
+                                modifier = Modifier.size(30.dp)
+                            )
+                        } else {
+                            CircularProgressIndicator()
+                        }
                     }
                 }
             }
@@ -199,6 +210,7 @@ fun ChatRoomUI(userName: String, id: String, chatRoomName: String){
             modifier = Modifier
                 .padding(innerPadding)
                 .fillMaxWidth(),
+            state = listState,
         ) {
             item {
                 if (viewModel.isLoadingMessage.value) {
@@ -216,7 +228,10 @@ fun ChatRoomUI(userName: String, id: String, chatRoomName: String){
                     }
                 }
             }
-            items(messages) { (sender, message, time) ->
+            items(messages) { item ->
+                val sender = item["sender"]?.jsonPrimitive?.content ?: "Unknown"
+                val message = item["message"]?.jsonPrimitive?.content ?: "No message"
+                val time = item["time"]?.jsonPrimitive?.content ?: "Null"
                 Log.d("TAG", "items updated: ${sender}:${message}:${time}")
                 MessageBox(sender, message, time, sender == userName)
             }

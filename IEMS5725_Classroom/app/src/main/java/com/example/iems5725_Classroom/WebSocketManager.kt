@@ -3,6 +3,8 @@ package com.example.iems5725_Classroom
 import android.util.Log
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonObject
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
@@ -14,24 +16,26 @@ class WebSocketManager(private val roomCode: String) {
     private val client = OkHttpClient()
     private var webSocket: WebSocket? = null
 
-    var onMessageReceived: ((MessageItem) -> Unit)? = null
+    var onMessageReceived: ((JsonObject) -> Unit)? = null
 
     fun connect() {
         val request = Request.Builder()
-            .url("ws://your_backend_url/ws/$roomCode")
+            .url("wss://chat.lamitt.com/ws/$roomCode")
             .build()
 
         webSocket = client.newWebSocket(request, object : WebSocketListener() {
             override fun onMessage(webSocket: WebSocket, text: String) {
-                val message = Json.decodeFromString<MessageItem>(text)
-                onMessageReceived?.invoke(message)
+                try {
+                    Log.d("WebSocket", "Receive a message: ${text}")
+                    val message = Json.parseToJsonElement(text).jsonObject
+                    onMessageReceived?.invoke(message)
+                } catch (e: Exception) {
+                    Log.e("WebSocket", "Failed to decode message: ${e.message}")
+                }
             }
-
-            // 其他 WebSocket 事件处理...
         })
     }
 
-    // 发送消息
     fun sendMessage(sender: String, message: String) {
         val messageJson = """
             {
@@ -39,10 +43,13 @@ class WebSocketManager(private val roomCode: String) {
                 "message": "$message"
             }
         """
-        webSocket?.send(messageJson)
+        try {
+            webSocket?.send(messageJson)
+        } catch (e: Exception) {
+            Log.e("WebSocket","Sending fail: ${e.message}")
+        }
     }
 
-    // 关闭 WebSocket 连接
     fun close() {
         webSocket?.close(1000, "Closing connection")
     }
