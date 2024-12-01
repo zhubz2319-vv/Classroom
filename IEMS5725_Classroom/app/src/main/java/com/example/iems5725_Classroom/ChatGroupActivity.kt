@@ -120,10 +120,10 @@ fun ChatRoomUI(userName: String, id: String, chatRoomName: String){
     val viewModel: ChatViewModel = viewModel()
     val isMessageSent = viewModel.isMessageSent.observeAsState(initial = true).value
     val messages by viewModel.messages.observeAsState(emptyList())
-    val messagesLength = viewModel.messageHistory.value["messages"]?.jsonArray?.size ?: 0
     Log.d("Messages", "Messages updated: $messages")
+    val messagesLength = viewModel.messageHistory.value["messages"]?.jsonArray?.size ?: 0
     LaunchedEffect(messages.size) {
-        listState.animateScrollToItem(messages.size + messagesLength - 1)
+        listState.animateScrollToItem(messages.size + messagesLength)
     }
     Scaffold(
         topBar = {

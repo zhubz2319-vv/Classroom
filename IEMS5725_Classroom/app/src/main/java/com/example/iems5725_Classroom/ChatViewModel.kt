@@ -40,7 +40,9 @@ class ChatViewModel(private val networkRepository: NetworkRepository, roomCode: 
         val sharedPref = application.getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
         val currentUser = sharedPref.getString("username", "DefaultUser") ?: "DefaultUser"
         webSocketManager.onMessageReceived = { jsonObject ->
-            _messages.postValue(listOf(jsonObject))
+            val currentMessages = _messages.value.orEmpty()
+            val updatedMessages = currentMessages + jsonObject
+            _messages.postValue(updatedMessages)
             val sender = jsonObject["sender"]?.jsonPrimitive?.content
             if (sender == currentUser) {
                 _isMessageSent.postValue(true)

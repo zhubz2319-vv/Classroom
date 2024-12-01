@@ -3,6 +3,7 @@ package com.example.iems5725_Classroom
 import MainViewModel
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
@@ -37,7 +38,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.ZeroCornerSize
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -49,6 +53,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults.topAppBarColors
 import androidx.compose.runtime.Composable
@@ -61,6 +67,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
@@ -95,15 +102,16 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import com.example.iems5725_Classroom.ui.theme.IEMS5725_ClassTheme
 import com.google.firebase.messaging.Constants.MessageNotificationKeys.TAG
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
-
-const val MY_USER_ID = 1155229615
-const val MY_USER_NAME = "test"
 const val BASE_URL = "https://chat.lamitt.com/"
 
 
@@ -114,10 +122,12 @@ class MainActivity : ComponentActivity() {
         requestNotificationPermission()
         FirebaseApp.initializeApp(this)
         createNotificationChannel()
+        val sharedPref = getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
+        val username = sharedPref.getString("username", "DefaultUser")
         val networkRepository = NetworkRepository()
         val viewModelFactory = MainViewModelFactory(networkRepository)
         val viewModel = ViewModelProvider(this, viewModelFactory).get(MainViewModel::class.java)
-        viewModel.fetchTabData(0, "Courses")
+        viewModel.fetchTabData(0, "Courses", username.toString())
 //        CoroutineScope(Dispatchers.IO).launch {
 //            val result = getResultFromApi(BASE_URL + "check_token/?user_id=" + MY_USER_ID)
 //            if (result["status"]?.jsonPrimitive?.content == "ERROR") {
@@ -130,7 +140,7 @@ class MainActivity : ComponentActivity() {
 //        }
         setContent {
             ContrastAwareReplyTheme {
-                ScaffoldUI()
+                ScaffoldUI(username.toString())
             }
         }
     }
@@ -181,59 +191,23 @@ suspend fun getToken(): String = suspendCancellableCoroutine { continuation ->
     }
 }
 
-suspend fun getResultFromApi(url: String): JsonObject{
-    val client = HttpClient(CIO) {
-        install(JsonFeature) {
-            serializer = KotlinxSerializer()
-        }
-        install(Logging) {
-            level = LogLevel.INFO
-        }
-    }
-    val response: JsonObject = client.get(url)
-    client.close()
-    return response
-}
-suspend fun postInfoToApi(message: Any, url: String): JsonObject {
-    val client = HttpClient(CIO) {
-        install(JsonFeature) {
-            serializer = KotlinxSerializer()
-        }
-        install(Logging) {
-            level = LogLevel.INFO
-        }
-    }
-    val response: JsonObject = client.post(url){
-        contentType(io.ktor.http.ContentType.Application.Json)
-        body = message
-    }
-    client.close()
-    return response
-}
-
+//{"room_code":"G01","room_name":"A New Group","username":"test"}
 @Serializable
-data class ChatMessage(val chatroom_id: Int,
-                       val user_id: Int,
-                       val name: String,
-                       val message: String)
+data class ChatGroup(val room_code: String,
+                     val room_name: String,
+                     val username: String)
 
 @Serializable
 data class TokenMessage(val token: String,
                         val user_id: Int)
 
 @OptIn(ExperimentalMaterial3Api::class)
-@Preview
 @Composable
-fun ScaffoldUI() {
+fun ScaffoldUI(userName: String) {
     val viewModel: MainViewModel = viewModel()
     val context = LocalContext.current
     var selectedTab by remember { mutableIntStateOf(0) }
-//    LaunchedEffect(Unit) {
-//        rooms = withContext(Dispatchers.IO) {
-//            getResultFromApi(BASE_URL + "get_chatrooms/")
-//        }
-//    }
-    // 当 selectedTab 改变时，启动网络请求
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -252,6 +226,9 @@ fun ScaffoldUI() {
                         )
                     }
                 },
+                actions = {
+                    CreateRoomButton(userName)
+                }
             )
         },
         bottomBar = {
@@ -262,13 +239,12 @@ fun ScaffoldUI() {
                         horizontalArrangement = Arrangement.SpaceEvenly,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-
                         IconButton(
                             onClick = {
-                                viewModel.fetchTabData(0, "Courses")
+                                viewModel.fetchTabData(0, "Courses", userName)
                                 selectedTab = 0
                                       },
-                            modifier = Modifier.size(40.dp)
+                            modifier = Modifier.size(50.dp)
                         ) {
                             Icon(
                                 painter = painterResource(R.drawable.courses),
@@ -277,9 +253,9 @@ fun ScaffoldUI() {
                             )
                         }
                         IconButton(
-                            onClick = { viewModel.fetchTabData(1, "Chat Groups")
+                            onClick = { viewModel.fetchTabData(1, "Chat Groups", userName)
                                 selectedTab = 1},
-                            modifier = Modifier.size(40.dp)
+                            modifier = Modifier.size(50.dp)
                         ) {
                             Icon(
                                 painter = painterResource(R.drawable.chatgroup_us),
@@ -288,15 +264,17 @@ fun ScaffoldUI() {
                             )
                         }
                         IconButton(
-                            onClick = { viewModel.fetchTabData(2, "My Profile")
+                            onClick = { viewModel.fetchTabData(2, "My Profile", userName)
                                 selectedTab = 2},
-                            modifier = Modifier.size(40.dp)
+                            modifier = Modifier
+                                .size(50.dp)
+                                .clip(RectangleShape)
                         ) {
                             Icon(
                                 painter = painterResource(R.drawable.myinfo_us),
                                 contentDescription = "Localized description",
                                 tint = if (selectedTab == 2) MaterialTheme.colorScheme.scrim else Color.Black,
-
+                                modifier = Modifier.fillMaxSize()
                             )
                         }
                     }
@@ -455,11 +433,11 @@ fun ChatRoomItem(roomId: String, roomName: String, owner: String){
                 .padding(8.dp), // 为 Column 添加内边距
             horizontalAlignment = Alignment.CenterHorizontally // 内容居中
         ) {
-            Text(text = "Course Name: $roomId", style = MaterialTheme.typography.bodyLarge)
+            Text(text = "Room Id: $roomId", style = MaterialTheme.typography.bodyLarge)
             Spacer(modifier = Modifier.height(4.dp)) // 添加一些间隔
-            Text(text = "Course Code: $roomName", style = MaterialTheme.typography.bodyMedium)
+            Text(text = "Room Name: $roomName", style = MaterialTheme.typography.bodyMedium)
             Spacer(modifier = Modifier.height(4.dp)) // 添加一些间隔
-            Text(text = "Instructor: $owner", style = MaterialTheme.typography.bodyMedium)
+            Text(text = "Owner: $owner", style = MaterialTheme.typography.bodyMedium)
         }
     }
 }
@@ -504,10 +482,16 @@ fun CourseOption(courseName: String, courseCode: String){
         ) {
             Button(
                 onClick = {
-
+                    val intent = Intent(context, CourseActivity::class.java).apply {
+                        putExtra("course_code", courseCode)
+                        putExtra("section", "announcement")
+                        putExtra("course_name", courseName)
+                    }
+                    context.startActivity(intent)
                 },
                 shape = RoundedCornerShape(ZeroCornerSize),
-                modifier = Modifier.fillMaxHeight()
+                modifier = Modifier
+                    .fillMaxHeight()
                     .weight(1f),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.secondary
@@ -517,7 +501,8 @@ fun CourseOption(courseName: String, courseCode: String){
             }
             Surface(
                 color = Color.White,
-                modifier = Modifier.width(5.dp)
+                modifier = Modifier
+                    .width(5.dp)
                     .fillMaxHeight()
             ) {  }
             Button(
@@ -525,7 +510,8 @@ fun CourseOption(courseName: String, courseCode: String){
 
                 },
                 shape = RoundedCornerShape(ZeroCornerSize),
-                modifier = Modifier.fillMaxHeight()
+                modifier = Modifier
+                    .fillMaxHeight()
                     .weight(1f),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.secondary
@@ -544,7 +530,8 @@ fun CourseOption(courseName: String, courseCode: String){
 
                 },
                 shape = RoundedCornerShape(ZeroCornerSize),
-                modifier = Modifier.fillMaxHeight()
+                modifier = Modifier
+                    .fillMaxHeight()
                     .weight(1f),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.secondary
@@ -554,7 +541,8 @@ fun CourseOption(courseName: String, courseCode: String){
             }
             Surface(
                 color = Color.White,
-                modifier = Modifier.width(5.dp)
+                modifier = Modifier
+                    .width(5.dp)
                     .fillMaxHeight()
             ) {  }
             Button(
@@ -562,7 +550,8 @@ fun CourseOption(courseName: String, courseCode: String){
 
                 },
                 shape = RoundedCornerShape(ZeroCornerSize),
-                modifier = Modifier.fillMaxHeight()
+                modifier = Modifier
+                    .fillMaxHeight()
                     .weight(1f),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.secondary
@@ -572,6 +561,99 @@ fun CourseOption(courseName: String, courseCode: String){
             }
 
         }
+    }
+}
+
+@Composable
+fun CreateRoomButton(userName: String) {
+    var isDialogOpen by remember { mutableStateOf(false) }
+    val viewModel: MainViewModel = viewModel()
+    CreateRoomDialog(
+        isDialogOpen = isDialogOpen,
+        onCreate = { roomCode, roomName ->
+            val request = ChatGroup(room_code = roomCode, room_name = roomName, username = userName)
+            CoroutineScope(Dispatchers.Main).launch {
+                try {
+                    viewModel.postForCreateChat(request)
+                    viewModel.fetchTabData(1, "Chat Groups", userName)
+                    isDialogOpen = false
+                } catch (e: Exception) {
+                    Log.e("CreateRoom", "Error creating room: ${e.message}")
+                }
+            }
+        },
+        onCancel = {
+            isDialogOpen = false
+        }
+    )
+
+    IconButton(
+        onClick = {
+            when (viewModel.selectedTab.value) {
+                1 -> {
+                    isDialogOpen = true
+                }
+            }
+        }
+    ) {
+        Icon(
+            imageVector = Icons.Default.Add,
+            contentDescription = null,
+            modifier = Modifier.size(30.dp)
+        )
+    }
+
+}
+
+@Composable
+fun CreateRoomDialog(
+    onCreate: (String, String) -> Unit,
+    onCancel: () -> Unit,
+    isDialogOpen: Boolean,
+) {
+    var roomCode by remember { mutableStateOf("") }
+    var roomName by remember { mutableStateOf("") }
+    if (isDialogOpen) {
+        AlertDialog(
+            onDismissRequest = { onCancel() },
+            title = { Text("Create a New Room") },
+            text = {
+                Column {
+                    TextField(
+                        value = roomCode,
+                        onValueChange = { roomCode = it },
+                        label = { Text("Room Code") },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 8.dp)
+                    )
+
+                    TextField(
+                        value = roomName,
+                        onValueChange = { roomName = it },
+                        label = { Text("Room Name") },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 8.dp)
+                    )
+
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onCreate(roomCode, roomName)
+                    }
+                ) {
+                    Text("Create")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { onCancel() }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }
 
