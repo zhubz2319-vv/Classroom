@@ -95,6 +95,9 @@ import androidx.compose.material3.TextField
 import androidx.compose.runtime.remember
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.lifecycleScope
+import com.example.iems5725_Classroom.network.*
+import com.google.firebase.messaging.FirebaseMessaging
 
 class RegisterActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -106,13 +109,12 @@ class RegisterActivity : ComponentActivity() {
                 var username by remember { mutableStateOf("") } // 存储用户名
                 var password by remember { mutableStateOf("") } // 存储密码
                 var confirmPassword by remember { mutableStateOf("") } // 存储确认密码
+                var securityAnswer by remember { mutableStateOf("") }
+                var authCode by remember { mutableStateOf("") }
                 var errorMessage by remember { mutableStateOf("") } // 错误信息
 
                 // 获取SharedPreferences
                 val sharedPref = context.getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
-
-                // 已注册的用户名列表
-                val registeredUsernames = sharedPref.getStringSet("usernames", setOf()) ?: setOf()
 
                 Column(
                     modifier = Modifier
@@ -131,7 +133,7 @@ class RegisterActivity : ComponentActivity() {
                         onValueChange = { username = it },
                         label = { Text("Username") },
                         modifier = Modifier.fillMaxWidth(),
-                        isError = errorMessage.isNotEmpty() && !username.isBlank()
+                        isError = errorMessage == "Username already exists"
                     )
 
                     Spacer(modifier = Modifier.height(8.dp))
@@ -142,7 +144,7 @@ class RegisterActivity : ComponentActivity() {
                         onValueChange = { password = it },
                         label = { Text("Password") },
                         modifier = Modifier.fillMaxWidth(),
-                        isError = errorMessage.isNotEmpty() && !password.isBlank(),
+                        isError = errorMessage == "Passwords do not match",
                         visualTransformation = PasswordVisualTransformation() // 隐藏密码输入
                     )
 
@@ -154,9 +156,31 @@ class RegisterActivity : ComponentActivity() {
                         onValueChange = { confirmPassword = it },
                         label = { Text("Confirm Password") },
                         modifier = Modifier.fillMaxWidth(),
-                        isError = errorMessage.isNotEmpty() && !confirmPassword.isBlank(),
+                        isError = errorMessage == "Passwords do not match",
                         visualTransformation = PasswordVisualTransformation() // 隐藏密码输入
                     )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    TextField(
+                        value = securityAnswer,
+                        onValueChange = { securityAnswer = it },
+                        label = { Text("What's your favorite food?") },
+                        modifier = Modifier.fillMaxWidth(),
+                        isError = errorMessage.isNotEmpty() && securityAnswer.isBlank()
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    TextField(
+                        value = authCode,
+                        onValueChange = { authCode = it },
+                        label = { Text("Please enter Auth Code if you have one") },
+                        modifier = Modifier.fillMaxWidth(),
+                        isError = errorMessage == "Invalid auth code"
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
 
                     // 错误提示文本
                     if (errorMessage.isNotEmpty()) {
@@ -173,28 +197,33 @@ class RegisterActivity : ComponentActivity() {
                     Button(
                         onClick = {
                             when {
-                                username.isBlank() || password.isBlank() || confirmPassword.isBlank() -> {
+                                username.isBlank() || password.isBlank() || confirmPassword.isBlank() || securityAnswer.isBlank() -> {
                                     errorMessage = "All fields must be filled"
                                 }
                                 password != confirmPassword -> {
                                     errorMessage = "Passwords do not match"
                                 }
-                                registeredUsernames.contains(username) -> {
-                                    errorMessage = "Username already exists"
-                                }
                                 else -> {
-                                    // 保存注册信息到SharedPreferences
-                                    val editor = sharedPref.edit()
-                                    val newUsernames = registeredUsernames.toMutableSet()
-                                    newUsernames.add(username)  // 添加新用户名
-                                    editor.putStringSet("usernames", newUsernames)
-                                    editor.putString(username, password)  // 保存用户名对应的密码
-                                    editor.apply()
-
-                                    // 注册成功后跳转到登录界面
-                                    val intent = Intent(context, LoginActivity::class.java)
-                                    startActivity(intent)
-                                    finish() // 结束注册页面
+                                    lifecycleScope.launch {
+                                        var code: String? = null
+                                        if (authCode.isNotEmpty()) {
+                                            code = authCode
+                                        }
+                                        val response = doRegister(username, password, securityAnswer, code)
+                                        if (response.status == "success") {
+                                            with (sharedPref.edit()) {
+                                                putString("username", username)
+                                                putString("token", response.token)
+                                                apply()
+                                            }
+                                            val intent = Intent(context, MainActivity::class.java)
+                                            startActivity(intent)
+                                            finish()
+                                        }
+                                        else {
+                                            errorMessage = response.message
+                                        }
+                                    }
                                 }
                             }
                         },
@@ -218,5 +247,10 @@ class RegisterActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    private suspend fun doRegister(username: String, password: String, security_answer: String, auth_code: String? = null): RegisterResponse {
+        val api = RetrofitClient.apiService
+        return api.register(RegisterRequest(username, password, security_answer, auth_code))
     }
 }

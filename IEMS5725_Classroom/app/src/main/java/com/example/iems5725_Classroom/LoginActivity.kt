@@ -77,10 +77,25 @@ import androidx.compose.material3.TextField
 import androidx.compose.runtime.remember
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.lifecycleScope
+import com.example.iems5725_Classroom.network.*
+import com.google.firebase.messaging.FirebaseMessaging
+import retrofit2.http.*
 
 class LoginActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        var FCMToken = ""
+        FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+            if (!task.isSuccessful) {
+                Log.d("FCM", "Fetching FCM registration token failed", task.exception)
+                return@addOnCompleteListener
+            }
+
+            FCMToken = task.result
+            Log.d("FCM", "FCM registration token: $FCMToken")
+        }
 
         setContent {
             ContrastAwareReplyTheme {  // 使用主题设置
@@ -137,24 +152,60 @@ class LoginActivity : ComponentActivity() {
                     // 登录按钮
                     Button(
                         onClick = {
-                            val storedPassword = sharedPref.getString(username, null)
-
-                            if (username.isBlank() || password.isBlank()) {
-                                errorMessage = "Username and Password cannot be empty"
-                            } else if (storedPassword == null) {
-                                errorMessage = "User not found"
-                            } else if (storedPassword != password) {
-                                errorMessage = "Incorrect password"
-                            } else {
-                                // 登录成功，跳转到主界面或其他页面
-                                val intent = Intent(context, MainActivity::class.java)
-                                startActivity(intent)
-                                finish() // 结束当前登录页面
+                            lifecycleScope.launch {
+                                val response = doLogin(username, password)
+                                if (response.status == "success") {
+                                    with (sharedPref.edit()) {
+                                        putString("username", username)
+                                        putString("token", response.token)
+                                        apply()
+                                    }
+                                    val fcm = doSubmitToken(username, FCMToken)
+                                    if (!fcm) {
+                                        Log.d("FCM", "Submit FCM Error")
+                                    }
+                                    val intent = Intent(context, MainActivity::class.java)
+                                    startActivity(intent)
+                                    finish()
+                                }
+                                else {
+                                    errorMessage = response.message
+                                }
                             }
                         },
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text("Login")
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Button(
+                        onClick = {
+                            lifecycleScope.launch {
+                                val token = sharedPref.getString("token", null)
+                                if (token != null) {
+                                    val response = doAuth(token)
+                                    if (response.status == "success") {
+                                        val new_token = doRefresh(token).token
+                                        with (sharedPref.edit()) {
+                                            putString("username", username)
+                                            putString("token", new_token)
+                                            apply()
+                                        }
+                                        val intent = Intent(context, MainActivity::class.java)
+                                        startActivity(intent)
+                                        finish()
+                                    }
+                                    else {
+                                        errorMessage = response.message
+                                    }
+                                }
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Use saved token to login")
                     }
 
                     Spacer(modifier = Modifier.height(16.dp))
@@ -172,9 +223,26 @@ class LoginActivity : ComponentActivity() {
                 }
             }
         }
+
+    }
+
+    private suspend fun doLogin(username: String, password: String): LoginResponse {
+        val api = RetrofitClient.apiService
+        return api.login(LoginRequest(username, password))
+    }
+
+    private suspend fun doAuth(token: String): AuthResponse {
+        val api = RetrofitClient.apiService
+        return api.auth("Bearer $token")
+    }
+
+    private suspend fun doRefresh(token: String): RefreshResponse {
+        val api = RetrofitClient.apiService
+        return api.refreshToken("Bearer $token")
+    }
+
+    private suspend fun doSubmitToken(username: String, token: String): Boolean {
+        val api = RetrofitClient.apiService
+        return api.submitFCMToken(FCMSubmitRequest(username, token)).status == "success"
     }
 }
-
-
-
-
