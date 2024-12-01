@@ -249,8 +249,10 @@ async def send_message(request: MessageRequest) -> StandardResponse:
     message = request.message
     file_id = request.file_id
     time = datetime.now(tz=pytz.timezone('Asia/Hong_Kong')).strftime("%Y-%m-%d %H:%M:%S")
+    users = (await database[CHATS_COLLECTION].find_one({"room_code": room_code}))["users"]
     await database[MESSAGES_COLLECTION].insert_one({"room_code": room_code, "sender": sender, "message": message, "time": time, "file_id": file_id})
     await manager.broadcast(room_code, {"sender": sender, "message": message, "time": time, "file_id": file_id})
+    await notify(users, room_code, f"New message from {sender}")
     return JSONResponse(content={"status": "success", "message": "Message sent"})
 
 @app.post("/upload_file")

@@ -3,14 +3,9 @@ import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.iems5725_Classroom.MessageItem
 import com.example.iems5725_Classroom.NetworkRepository
-import com.example.iems5725_Classroom.TokenMessage
-import com.example.iems5725_Classroom.WebSocketManager
 import com.google.firebase.messaging.Constants.MessageNotificationKeys.TAG
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonObject
