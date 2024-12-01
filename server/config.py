@@ -15,7 +15,7 @@ AUTH_TOKEN = "HERE IS YOUR AUTH TOKEN" # Auth token
 SECRET_KEY = "A-Extremely-Secret-Key" # JWT secret key
 ALGORITHM = "HS256" # JWT algorithm
 
-FCM = FCMNotification(service_account_file="./service_account_file.json", project_id="chatapp-3217d")
+FCM = FCMNotification(service_account_file="./service_account_file.json", project_id="iems5722-chatroom")
 client = AsyncIOMotorClient(MONGODB)
 database = client[DATABASE]
 fs = AsyncIOMotorGridFSBucket(database)
