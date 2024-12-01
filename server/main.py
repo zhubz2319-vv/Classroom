@@ -259,6 +259,14 @@ async def upload_file(file: UploadFile = File(...)) -> UploadFileResponse:
     file_id = await fs.upload_from_stream(file.filename, contents)
     return JSONResponse(content={"status": "success", "message": "File uploaded", "file_id": str(file_id)})
 
+@app.get("/get_filename")
+async def get_filename(file_id: str = None) -> FileNameResponse:
+    if file_id is None:
+        return JSONResponse(content={"status": "fail", "message": "File ID not specified"})
+    collection = database["fs.files"]
+    file_name = (await collection.find_one({"_id": ObjectId(file_id)}))["filename"]
+    return JSONResponse(content={"status": "success", "message": "File name retrieved", "file_name": file_name})
+
 @app.get("/download_file")
 async def download_file(file_id: str = None) -> StreamingResponse:
     if file_id is None:

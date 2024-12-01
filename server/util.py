@@ -161,6 +161,11 @@ class UploadFileResponse(BaseModel):
     message: str
     file_id: str
 
+class FileNameResponse(BaseModel):
+    status: str
+    message: str
+    file_name: str
+
 class StandardResponse(BaseModel):
     status: str
     message: str
