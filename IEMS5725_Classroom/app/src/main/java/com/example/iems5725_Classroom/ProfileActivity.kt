@@ -1,4 +1,5 @@
 package com.example.iems5725_Classroom
+import android.content.ClipData
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
@@ -30,12 +31,22 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.lifecycleScope
 import android.net.Uri
+import android.provider.OpenableColumns
+import android.util.Log
+import android.widget.Toast
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import coil3.compose.AsyncImage
 import com.bumptech.glide.integration.compose.ExperimentalGlideComposeApi
 import com.bumptech.glide.integration.compose.GlideImage
 import com.example.iems5725_Classroom.network.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.RequestBody
+import okhttp3.RequestBody.Companion.asRequestBody
+import java.io.File
 import java.util.Locale
 
 class ProfileActivity : ComponentActivity() {
@@ -242,18 +253,89 @@ class ProfileActivity : ComponentActivity() {
         onNoteEditToggle: () -> Unit
     ) {
 
+        val clipboardManager = LocalClipboardManager.current
         var showLogoutConfirmation by remember { mutableStateOf(false) }
         var showInputDialog by remember { mutableStateOf(false) }
         var profilePicUrl by remember { mutableStateOf(sharedPref.getString("profile_pic_url", "") ?: "") }
         var newImageUrl by remember { mutableStateOf(TextFieldValue(profilePicUrl)) }
         var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
         var isInputUrlSelected by remember { mutableStateOf(false) }
+        var selectedFileUri by remember { mutableStateOf<Uri?>(null) }
+        var isUploading by remember { mutableStateOf(false) }
 
         val getImage = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
             uri?.let {
                 selectedImageUri = uri
                 sharedPref.edit().putString("profile_pic_url", uri.toString()).apply()
                 profilePicUrl = uri.toString()
+            }
+        }
+
+        val getFile = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
+            uri?.let {
+                selectedFileUri = uri
+            }
+        }
+
+        fun getFileNameFromUri(): String? {
+            var fileName: String? = null
+            val cursor = context.contentResolver.query(selectedFileUri!!, null, null, null, null)
+            cursor?.use {
+                val nameIndex = it.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                if (it.moveToFirst()) {
+                    fileName = it.getString(nameIndex)
+                }
+            }
+            return fileName
+        }
+
+        fun getFileFromUri(): File? {
+            val fileName = getFileNameFromUri() ?: "Default_Name"
+            val inputStream = context.contentResolver.openInputStream(selectedFileUri!!)
+            val tempFile = File(context.cacheDir, fileName)
+
+            inputStream?.let { input ->
+                tempFile.outputStream().use { output ->
+                    input.copyTo(output)
+                }
+            }
+
+            return if (tempFile.exists()) tempFile else null
+        }
+
+        fun createMultipartBodyPart(file: File, parameterName: String): MultipartBody.Part {
+            val requestBody: RequestBody = file
+                .asRequestBody("application/octet-stream".toMediaTypeOrNull())
+
+            return MultipartBody.Part.createFormData(parameterName, file.name, requestBody)
+        }
+
+        fun prepareFileForUpload(): MultipartBody.Part? {
+            val file = getFileFromUri()
+            return file?.let {
+                createMultipartBodyPart(it, "file")
+            }
+        }
+
+        fun doUploadFile() {
+            val multipartBodyPart = prepareFileForUpload()
+
+            if (multipartBodyPart != null) {
+                lifecycleScope.launch {
+                    isUploading = true
+                    val api = RetrofitClient.apiService
+                    val response = api.uploadFile(multipartBodyPart)
+                    if (response.status == "success") {
+                        println("HERE IS THE FILE_ID ${response.file_id}")
+                        selectedFileUri = null
+                        clipboardManager.setText(AnnotatedString("https://chat.lamitt.com/download_file?file_id=${response.file_id}"))
+                        Toast.makeText(context, "File URL copied to clipboard.", Toast.LENGTH_SHORT).show()
+                    }
+                    else {
+                        println("FILE UPLOAD UNSUCCESSFULLY!")
+                    }
+                    isUploading = false
+                }
             }
         }
 
@@ -338,6 +420,25 @@ class ProfileActivity : ComponentActivity() {
             }
 
             Spacer(modifier = Modifier.height(24.dp))
+
+            Button(
+                onClick = {
+                    getFile.launch(arrayOf("*/*"))
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Upload File")
+            }
+
+            if (selectedFileUri != null) {
+                doUploadFile()
+            }
+
+            if (isUploading) {
+                CircularProgressIndicator()
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
 
             Button(
                 onClick = {
@@ -457,10 +558,10 @@ class ProfileActivity : ComponentActivity() {
         }
     }
 
-
     private suspend fun doInfoRequest(username: String): UserInfoResponse {
         val api = RetrofitClient.apiService
         return api.getInfo(username)
     }
+
 }
 

@@ -294,5 +294,6 @@ async def websocket_endpoint(websocket: WebSocket, room_code: str):
             time = datetime.now(tz=pytz.timezone('Asia/Hong_Kong')).strftime("%Y-%m-%d %H:%M:%S")
             await database[MESSAGES_COLLECTION].insert_one({"room_code": room_code, "sender": message["sender"], "message": message["message"], "time": time, "file_id": message.get("file_id", None)})
             await manager.broadcast(room_code, {"sender": message["sender"], "message": message["message"], "time": time, "file_id": message.get("file_id", None)})
+            await notify(users, room_code, f"New message from {sender}")
     except WebSocketDisconnect:
         manager.disconnect(room_code, websocket)

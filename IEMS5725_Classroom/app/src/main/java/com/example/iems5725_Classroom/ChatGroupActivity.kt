@@ -7,8 +7,10 @@ import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -113,6 +115,12 @@ class ChatGroupActivity : ComponentActivity(){
         val messages by viewModel.messages.observeAsState(emptyList())
         Log.d("Messages", "Messages updated: $messages")
         val messagesLength = viewModel.messageHistory.value["messages"]?.jsonArray?.size ?: 0
+        var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
+        val getImage = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+            uri?.let {
+                selectedImageUri = uri
+            }
+        }
         LaunchedEffect(messages.size) {
             listState.animateScrollToItem(messages.size + messagesLength)
         }

@@ -1,5 +1,6 @@
 package com.example.iems5725_Classroom.network
 
+import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.Response
 import okhttp3.ResponseBody
@@ -58,6 +59,10 @@ interface ApiService {
 
     @GET("/download_file")
     suspend fun downloadFile(@Query("file_id") fileID: String): ResponseBody
+
+    @Multipart
+    @POST("/upload_file")
+    suspend fun uploadFile(@Part file: MultipartBody.Part): uploadResponse
 }
 
 data class LoginRequest(
@@ -180,6 +185,12 @@ data class CourseInfo(
 data class StandardResponse(
     val status: String,
     val message: String
+)
+
+data class uploadResponse(
+    val status: String,
+    val message: String,
+    val file_id: String
 )
 
 object RetrofitClient {
