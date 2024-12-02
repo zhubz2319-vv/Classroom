@@ -5,8 +5,6 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
-import androidx.activity.viewModels
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -14,92 +12,49 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults.topAppBarColors
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
 import com.example.iems5725_Classroom.ui.theme.ContrastAwareReplyTheme
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.jsonArray
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
-import kotlinx.serialization.json.put
-import java.text.SimpleDateFormat
-import java.util.Date
 import android.util.Log
+import android.widget.Toast
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.runtime.livedata.observeAsState
-import androidx.lifecycle.Observer
-import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.viewmodel.compose.viewModel
-import kotlinx.serialization.Serializable
-import okhttp3.*
-import okio.ByteString
-import java.util.concurrent.TimeUnit
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
-import androidx.compose.runtime.remember
-import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TextField
-import androidx.compose.runtime.remember
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.lifecycleScope
 import com.example.iems5725_Classroom.network.*
 import com.google.firebase.messaging.FirebaseMessaging
-import retrofit2.http.*
 
 class LoginActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        var FCMToken = ""
+        var fcmToken = ""
         FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
             if (!task.isSuccessful) {
                 Log.d("FCM", "Fetching FCM registration token failed", task.exception)
                 return@addOnCompleteListener
             }
 
-            FCMToken = task.result
-            Log.d("FCM", "FCM registration token: $FCMToken")
+            fcmToken = task.result
+            Log.d("FCM", "FCM registration token: $fcmToken")
         }
 
         setContent {
@@ -109,11 +64,40 @@ class LoginActivity : ComponentActivity() {
                 var password by remember { mutableStateOf("") } // 存储输入的密码
                 var errorMessage by remember { mutableStateOf("") } // 错误信息
                 var rememberMe by remember { mutableStateOf(false) }
+                var autoLogin by remember { mutableStateOf(false) }
 
                 val sharedPref = context.getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
 
                 LaunchedEffect(Unit) {
                     rememberMe = sharedPref.getBoolean("rememberMe", false)
+                    autoLogin = sharedPref.getBoolean("autoLogin", false)
+                    if (autoLogin) {
+                        val token = sharedPref.getString("token", "")!!
+                        if (token.isNotEmpty()) {
+                            lifecycleScope.launch {
+                                val response = doAuth(token)
+                                if (response.status == "success") {
+                                    val newToken = doRefresh(token).token
+                                    with(sharedPref.edit()) {
+                                        putString("token", newToken)
+                                        apply()
+                                    }
+                                    Toast.makeText(
+                                        context,
+                                        "Auto Login Successfully",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                    startActivity(Intent(context, MainActivity::class.java))
+                                } else {
+                                    Toast.makeText(
+                                        context,
+                                        "Failed to auto login.",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                            }
+                        }
+                    }
                     if (rememberMe) {
                         val savedUsername = sharedPref.getString("username", "")
                         val savedPassword = sharedPref.getString("password", "")
@@ -201,6 +185,20 @@ class LoginActivity : ComponentActivity() {
 
                     Spacer(modifier = Modifier.height(8.dp))
 
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Checkbox(
+                            checked = autoLogin,
+                            onCheckedChange = { autoLogin = it }
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Auto Login?")
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
                     // 错误提示文本
                     if (errorMessage.isNotEmpty()) {
                         Text(
@@ -226,9 +224,10 @@ class LoginActivity : ComponentActivity() {
                                             putString("password", password)
                                             putString("token", response.token)
                                             putBoolean("rememberMe", rememberMe)
+                                            putBoolean("autoLogin", autoLogin)
                                             apply()
                                         }
-                                        val fcm = doSubmitToken(username, FCMToken)
+                                        val fcm = doSubmitToken(username, fcmToken)
                                         if (!fcm) {
                                             Log.d("FCM", "Submit FCM Error")
                                         }

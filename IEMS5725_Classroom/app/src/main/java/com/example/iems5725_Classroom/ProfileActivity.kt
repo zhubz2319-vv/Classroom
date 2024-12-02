@@ -451,6 +451,23 @@ class ProfileActivity : ComponentActivity() {
 
             Spacer(modifier = Modifier.height(16.dp))
 
+            Button(
+                onClick = {
+                    with(sharedPref.edit()) {
+                        putBoolean("autoLogin", false)
+                        apply()
+                    }
+                    Toast.makeText(
+                        context,
+                        "Successfully Disabled",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            ) {
+                Text("Disable Auto Login", color = Color.White)
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
             // Logout button with confirmation
             Button(
                 onClick = {

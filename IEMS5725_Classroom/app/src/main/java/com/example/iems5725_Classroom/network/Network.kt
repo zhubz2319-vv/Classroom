@@ -9,6 +9,7 @@ import retrofit2.Call
 import retrofit2.http.*
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import java.util.Dictionary
 
 interface ApiService {
 
@@ -131,7 +132,7 @@ data class FileNameResponse(
 data class AuthResponse(
     val status: String,
     val message: String,
-    val username: String
+    val username: Any
 )
 
 data class RefreshResponse(
