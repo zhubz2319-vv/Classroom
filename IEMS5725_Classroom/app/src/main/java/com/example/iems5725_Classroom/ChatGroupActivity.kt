@@ -3,6 +3,7 @@ package com.example.iems5725_Classroom
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
@@ -10,6 +11,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -27,6 +29,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -35,6 +40,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
@@ -50,13 +56,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.iems5725_Classroom.ui.theme.ContrastAwareReplyTheme
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import java.util.StringTokenizer
+import com.example.iems5725_Classroom.network.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 
 
 class ChatGroupActivity : ComponentActivity(){
@@ -78,6 +90,7 @@ class ChatGroupActivity : ComponentActivity(){
             }
         }
     }
+
     override fun onResume() {
         super.onResume()
         val roomCode = intent.getStringExtra("room_code")
@@ -200,12 +213,7 @@ class ChatGroupActivity : ComponentActivity(){
                             val message = dataObject["message"]?.jsonPrimitive?.content ?: ""
                             val time = dataObject["time"]?.jsonPrimitive?.content ?: "0000-00-00"
                             val fileIdString = dataObject["file_id"]?.jsonPrimitive?.content
-                            val fileId: Int? = fileIdString?.toIntOrNull()
-                            println("HERE IS THE FILE_ID $fileIdString")
-                            if (fileIdString == null) {
-                                println("Enter the real NULL!")
-                            }
-                            MessageBox(message, sender, time, sender == userName)
+                            MessageBox(message, sender, time, sender == userName, fileIdString)
                         }
                     }
                 }
@@ -213,17 +221,34 @@ class ChatGroupActivity : ComponentActivity(){
                     val sender = item["sender"]?.jsonPrimitive?.content ?: "Unknown"
                     val message = item["message"]?.jsonPrimitive?.content ?: ""
                     val time = item["time"]?.jsonPrimitive?.content ?: "0000-00-00"
+                    val fileIdString = item["file_id"]?.jsonPrimitive?.content
                     Log.d("TAG", "items updated: ${sender}:${message}:${time}")
-                    MessageBox(message, sender, time, sender == userName)
+                    MessageBox(message, sender, time, sender == userName, fileIdString)
                 }
             }
         }
     }
 
     @Composable
-    fun MessageBox(message: String, sender: String, timestamp: String, isUser: Boolean) {
+    fun MessageBox(message: String, sender: String, timestamp: String, isUser: Boolean, fileID: String?) {
         val backgroundColor = if (isUser) Color(0xFFD1F5FF) else Color(0xFFF1F1F1)
         val alignment = if (isUser) Arrangement.End else Arrangement.Start
+        var fileName by remember { mutableStateOf("") }
+
+        LaunchedEffect(fileID) {
+            if (fileID != null && fileID != "null") {
+                lifecycleScope.launch {
+                    val response = doFile(fileID)
+                    Log.d("FILE", "RESPONSE HERE: $response")
+                    if (response.status == "success") {
+                        fileName = response.file_name
+                    }
+                    else {
+                        Log.d("FILE", "RETRIEVE FILE NAME ERROR")
+                    }
+                }
+            }
+        }
 
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -237,6 +262,11 @@ class ChatGroupActivity : ComponentActivity(){
                     .widthIn(max = 250.dp)
             ) {
                 Text(text = message)
+
+                if (fileName.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    FilePreview(fileID!!, fileName)
+                }
 
                 Spacer(modifier = Modifier.height(4.dp))
 
@@ -260,6 +290,55 @@ class ChatGroupActivity : ComponentActivity(){
                 }
             }
         }
+    }
+
+    @OptIn(ExperimentalMaterial3Api::class)
+    @Composable
+    fun FilePreview(fileID: String, fileName: String) {
+        val context = LocalContext.current
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(8.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Text(
+                        text = fileName,
+                        style = MaterialTheme.typography.bodySmall,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    IconButton(
+                        onClick = {
+                            val downloadUrl = "https://chat.lamitt.com/download_file?file_id=$fileID"
+                            openLink(context, downloadUrl)
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ArrowDropDown,
+                            contentDescription = "Download Icon"
+                        )
+                    }
+                }
+
+            }
+        }
+    }
+
+    fun openLink(context: Context, url: String) {
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+        context.startActivity(intent)
+    }
+
+    private suspend fun doFile(fileID: String): FileNameResponse {
+        val api = RetrofitClient.apiService
+        return api.getFileName(fileID)
     }
 }
 

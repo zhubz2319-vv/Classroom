@@ -7,7 +7,6 @@ import androidx.core.app.NotificationCompat
 import com.google.firebase.messaging.Constants.MessageNotificationKeys.TAG
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
-import kotlinx.coroutines.*
 
 class MyFirebaseMessagingService : FirebaseMessagingService() {
 
@@ -21,12 +20,10 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         // Check if the message contains data payload
         remoteMessage.data.isNotEmpty().let {
             Log.d(TAG, "Message data payload: ${remoteMessage.data}")
-            // Handle data payload
         }
         // Check if the message contains a notification payload
         remoteMessage.notification?.let {
             Log.d(TAG, "Message Notification Body: ${it.body}")
-            // Show notification
         }
         remoteMessage.notification?.let { sendNotification(it.body, it.title) }
     }

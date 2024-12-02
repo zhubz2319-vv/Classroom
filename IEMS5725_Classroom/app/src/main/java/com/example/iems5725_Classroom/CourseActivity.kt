@@ -80,6 +80,220 @@ class CourseActivity : ComponentActivity(){
 //        }
     }
 
+    @OptIn(ExperimentalMaterial3Api::class)
+    @Composable
+    fun CourseUI(cCode: String, sec: String, courseName: String) {
+        val viewModel: MainViewModel = viewModel()
+        var selectedTab by remember { mutableStateOf(sec) }
+        val context = LocalContext.current
+
+        Scaffold (
+            topBar = {
+                TopAppBar(
+                    colors = topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        titleContentColor = MaterialTheme.colorScheme.primary,
+                    ),
+                    title = {
+                        Text(courseName)
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = {
+                            finish()
+                        } ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Back"
+                            )
+                        }
+                    }
+                )
+            },
+            /*bottomBar = {
+                BottomAppBar(
+                    actions = {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceEvenly,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            IconButton(
+                                onClick = { viewModel.fetchTabCourseData(cCode, "announcement")
+                                    selectedTab = "announcement"},
+                                modifier = Modifier.size(50.dp)
+                            ) {
+                                Icon(
+                                    painter = painterResource(R.drawable.announcement),
+                                    contentDescription = "Localized description",
+                                    tint = if (selectedTab == "announcement") MaterialTheme.colorScheme.primary else Color.Black,
+                                    modifier = Modifier.clip(RectangleShape)
+                                )
+                            }
+                            IconButton(
+                                onClick = { viewModel.fetchTabCourseData(cCode, "assignment")
+                                    selectedTab = "assignment"},
+                                modifier = Modifier.size(50.dp)
+                            ) {
+                                Icon(
+                                    painter = painterResource(R.drawable.assignment),
+                                    contentDescription = "Localized description",
+                                    tint = if (selectedTab == "assignment") MaterialTheme.colorScheme.primary else Color.Black,
+                                    modifier = Modifier.clip(RectangleShape)
+                                )
+                            }
+                            IconButton(
+                                onClick = { viewModel.fetchTabCourseData(cCode, "content")
+                                    selectedTab = "content"},
+                                modifier = Modifier.size(40.dp)
+                            ) {
+                                Icon(
+                                    painter = painterResource(R.drawable.content),
+                                    contentDescription = "Localized description",
+                                    tint = if (selectedTab == "content") MaterialTheme.colorScheme.scrim else Color.Black,
+                                    modifier = Modifier.clip(RectangleShape)
+                                )
+                            }
+                        }
+                    },
+
+                    )
+            },*/
+            modifier = Modifier.fillMaxSize()
+        ) { innerPadding ->
+            if (viewModel.isLoading2.value){
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.align(Alignment.Center)
+                    )
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding) // 设置外部间距
+                ) {
+//        {
+//            "course_code": "A01",
+//            "section": "announcement",
+//            "by": "tony",
+//            "time": "2024-11-29 00:00:12",
+//            "title": "Important!",
+//            "body": "Remember to bring your homework tomorrow.",
+//            "file_id": ""
+//        }
+                    item {
+                        val dataArray = viewModel.courseData.value["infos"]?.jsonArray
+                        dataArray?.forEach { element ->
+                            val dataObject = element.jsonObject
+                            val courseCode =
+                                dataObject["course_code"]?.jsonPrimitive?.content.toString()
+                            val section = dataObject["section"]?.jsonPrimitive?.content.toString()
+                            val by = dataObject["by"]?.jsonPrimitive?.content.toString()
+                            val time = dataObject["time"]?.jsonPrimitive?.content.toString()
+                            val title = dataObject["title"]?.jsonPrimitive?.content.toString()
+                            val body = dataObject["body"]?.jsonPrimitive?.content.toString()
+                            val fileId = dataObject["file_id"]?.jsonPrimitive?.content.toString()
+                            val notification = Notification(
+                                courseCode = courseCode,
+                                section = section,
+                                by = by,
+                                time = time,
+                                title = title,
+                                body = body,
+                                fileId = fileId
+                            )
+                            NotificationCard(notification = notification)
+                            Spacer(modifier = Modifier.height(8.dp))
+                        }
+
+                    }
+                }
+            }
+        }
+    }
+
+    @Composable
+    fun NotificationCard(notification: Notification) {
+        // 解析时间格式
+        val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+        val date = dateFormat.parse(notification.time)
+        val formattedTime = SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault()).format(date ?: Date())
+
+        // 卡片布局
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            shape = RoundedCornerShape(16.dp),
+            elevation = CardDefaults.cardElevation(8.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .padding(16.dp)
+                    .background(Color.White)
+            ) {
+                // 课程代码和类型
+                Text(
+                    text = "Course: ${notification.courseCode} | ${notification.section}",
+                    style = MaterialTheme.typography.headlineLarge,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+
+                // 标题
+                Text(
+                    text = notification.title,
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+
+                // 发送者和时间
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 8.dp)
+                ) {
+                    Text(
+                        text = "By: ${notification.by}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.Gray
+                    )
+                    Text(
+                        text = formattedTime,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.Gray
+                    )
+                }
+
+                // 通知正文
+                Text(
+                    text = notification.body,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+
+                // 文件附件（如果有）
+                if (notification.fileId.isNotEmpty()) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Start,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = "Attachment: ${notification.fileId}",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            }
+        }
+    }
+
 }
 
 data class Notification(
@@ -92,221 +306,9 @@ data class Notification(
     val fileId: String
 )
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun CourseUI(cCode: String, sec: String, courseName: String) {
-    val viewModel: MainViewModel = viewModel()
-    var selectedTab by remember { mutableStateOf(sec) }
-    val context = LocalContext.current
 
-    Scaffold (
-        topBar = {
-            TopAppBar(
-                colors = topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.primary,
-                ),
-                title = {
-                    Text(courseName)
-                },
-                navigationIcon = {
-                    IconButton(onClick = {
-                        val intent = Intent(context, MainActivity::class.java)
-                        context.startActivity(intent)
-                    } ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back to MainPage."
-                        )
-                    }
-                }
-            )
-        },
-        bottomBar = {
-            BottomAppBar(
-                actions = {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenly,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        IconButton(
-                            onClick = { viewModel.fetchTabCourseData(cCode, "announcement")
-                                selectedTab = "announcement"},
-                            modifier = Modifier.size(50.dp)
-                        ) {
-                            Icon(
-                                painter = painterResource(R.drawable.announcement),
-                                contentDescription = "Localized description",
-                                tint = if (selectedTab == "announcement") MaterialTheme.colorScheme.primary else Color.Black,
-                                modifier = Modifier.clip(RectangleShape)
-                            )
-                        }
-                        IconButton(
-                            onClick = { viewModel.fetchTabCourseData(cCode, "assignment")
-                                selectedTab = "assignment"},
-                            modifier = Modifier.size(50.dp)
-                        ) {
-                            Icon(
-                                painter = painterResource(R.drawable.assignment),
-                                contentDescription = "Localized description",
-                                tint = if (selectedTab == "assignment") MaterialTheme.colorScheme.primary else Color.Black,
-                                modifier = Modifier.clip(RectangleShape)
-                            )
-                        }
-                        IconButton(
-                            onClick = { viewModel.fetchTabCourseData(cCode, "content")
-                                selectedTab = "content"},
-                            modifier = Modifier.size(40.dp)
-                        ) {
-                            Icon(
-                                painter = painterResource(R.drawable.content),
-                                contentDescription = "Localized description",
-                                tint = if (selectedTab == "content") MaterialTheme.colorScheme.scrim else Color.Black,
-                                modifier = Modifier.clip(RectangleShape)
-                            )
-                        }
-                    }
-                },
 
-                )
-        },
-        modifier = Modifier.fillMaxSize()
-    ) { innerPadding ->
-        if (viewModel.isLoading2.value){
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator(
-                    modifier = Modifier.align(Alignment.Center)
-                )
-            }
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding) // 设置外部间距
-            ) {
-//        {
-//            "course_code": "A01",
-//            "section": "announcement",
-//            "by": "tony",
-//            "time": "2024-11-29 00:00:12",
-//            "title": "Important!",
-//            "body": "Remember to bring your homework tomorrow.",
-//            "file_id": ""
-//        }
-                item {
-                    val dataArray = viewModel.courseData.value["infos"]?.jsonArray
-                    dataArray?.forEach { element ->
-                        val dataObject = element.jsonObject
-                        val courseCode =
-                            dataObject["course_code"]?.jsonPrimitive?.content.toString()
-                        val section = dataObject["section"]?.jsonPrimitive?.content.toString()
-                        val by = dataObject["by"]?.jsonPrimitive?.content.toString()
-                        val time = dataObject["time"]?.jsonPrimitive?.content.toString()
-                        val title = dataObject["title"]?.jsonPrimitive?.content.toString()
-                        val body = dataObject["body"]?.jsonPrimitive?.content.toString()
-                        val fileId = dataObject["file_id"]?.jsonPrimitive?.content.toString()
-                        val notification = Notification(
-                            courseCode = courseCode,
-                            section = section,
-                            by = by,
-                            time = time,
-                            title = title,
-                            body = body,
-                            fileId = fileId
-                        )
-                        NotificationCard(notification = notification)
-                        Spacer(modifier = Modifier.height(8.dp))
-                    }
-
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun NotificationCard(notification: Notification) {
-    // 解析时间格式
-    val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
-    val date = dateFormat.parse(notification.time)
-    val formattedTime = SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault()).format(date ?: Date())
-
-    // 卡片布局
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp),
-        shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(8.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .padding(16.dp)
-                .background(Color.White)
-        ) {
-            // 课程代码和类型
-            Text(
-                text = "Course: ${notification.courseCode} | ${notification.section}",
-                style = MaterialTheme.typography.headlineLarge,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
-
-            // 标题
-            Text(
-                text = notification.title,
-                style = MaterialTheme.typography.bodyLarge,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
-
-            // 发送者和时间
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 8.dp)
-            ) {
-                Text(
-                    text = "By: ${notification.by}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Color.Gray
-                )
-                Text(
-                    text = formattedTime,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Color.Gray
-                )
-            }
-
-            // 通知正文
-            Text(
-                text = notification.body,
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.padding(bottom = 16.dp)
-            )
-
-            // 文件附件（如果有）
-            if (notification.fileId.isNotEmpty()) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Start,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        text = "Attachment: ${notification.fileId}",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
-            }
-        }
-    }
-}
-
+/*
 @Preview(showBackground = true)
 @Composable
 fun NotificationCardPreview() {
@@ -322,3 +324,4 @@ fun NotificationCardPreview() {
         )
     )
 }
+ */
