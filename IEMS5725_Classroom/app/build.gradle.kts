@@ -77,6 +77,8 @@ dependencies {
     implementation(libs.ktor.client.json)
     implementation(libs.ktor.client.serialization)
     implementation(libs.ktor.client.logging)
+    implementation("io.ktor:ktor-client-content-negotiation:2.3.13")
+    implementation("io.ktor:ktor-serialization-kotlinx-json:2.3.13")
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.lifecycle.viewmodel)
     implementation(libs.lifecycle.viewmodel.compose)
@@ -92,4 +94,6 @@ dependencies {
     implementation(libs.okhttp3.logging.interceptor)
     implementation(libs.coil.compose)
     implementation(libs.coil.network.okhttp)
+    implementation ("com.github.bumptech.glide:glide:4.16.0")
+    implementation ("com.github.bumptech.glide:compose:1.0.0-beta01")
 }

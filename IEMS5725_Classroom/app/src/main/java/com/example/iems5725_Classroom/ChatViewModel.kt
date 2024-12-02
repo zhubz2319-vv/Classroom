@@ -60,6 +60,7 @@ class ChatViewModel(private val networkRepository: NetworkRepository, roomCode: 
         super.onCleared()
         webSocketManager.close()
     }
+
     fun fetchMessage(roomCode: String){
         viewModelScope.launch {
             _isLoadingMessage.value = true

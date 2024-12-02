@@ -71,7 +71,9 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
@@ -106,8 +108,21 @@ class LoginActivity : ComponentActivity() {
                 var username by remember { mutableStateOf("") } // 存储输入的用户名
                 var password by remember { mutableStateOf("") } // 存储输入的密码
                 var errorMessage by remember { mutableStateOf("") } // 错误信息
+                var rememberMe by remember { mutableStateOf(false) }
 
                 val sharedPref = context.getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
+
+                LaunchedEffect(Unit) {
+                    rememberMe = sharedPref.getBoolean("rememberMe", false)
+                    if (rememberMe) {
+                        val savedUsername = sharedPref.getString("username", "")
+                        val savedPassword = sharedPref.getString("password", "")
+                        if (!savedUsername.isNullOrEmpty() && !savedPassword.isNullOrEmpty()) {
+                            username = savedUsername
+                            password = savedPassword
+                        }
+                    }
+                }
 
                 Column(
                     modifier = Modifier
@@ -172,6 +187,20 @@ class LoginActivity : ComponentActivity() {
 
                     Spacer(modifier = Modifier.height(8.dp))
 
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Checkbox(
+                            checked = rememberMe,
+                            onCheckedChange = { rememberMe = it }
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Remember me?")
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
                     // 错误提示文本
                     if (errorMessage.isNotEmpty()) {
                         Text(
@@ -194,7 +223,9 @@ class LoginActivity : ComponentActivity() {
                                     if (response.status == "success") {
                                         with(sharedPref.edit()) {
                                             putString("username", username)
+                                            putString("password", password)
                                             putString("token", response.token)
+                                            putBoolean("rememberMe", rememberMe)
                                             apply()
                                         }
                                         val fcm = doSubmitToken(username, FCMToken)

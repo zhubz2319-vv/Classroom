@@ -31,6 +31,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.lifecycleScope
 import android.net.Uri
 import coil3.compose.AsyncImage
+import com.bumptech.glide.integration.compose.ExperimentalGlideComposeApi
+import com.bumptech.glide.integration.compose.GlideImage
 import com.example.iems5725_Classroom.network.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -225,6 +227,7 @@ class ProfileActivity : ComponentActivity() {
         )
     }
 
+    @OptIn(ExperimentalGlideComposeApi::class)
     @Composable
     fun ProfileContent(
         modifier: Modifier,
@@ -285,7 +288,7 @@ class ProfileActivity : ComponentActivity() {
                             tint = Color.White
                         )
                     } else {
-                        AsyncImage(
+                        GlideImage(
                             model = profilePicUrl,
                             contentDescription = "Profile Photo",
                             modifier = Modifier.fillMaxSize(),
@@ -390,15 +393,42 @@ class ProfileActivity : ComponentActivity() {
                 onDismissRequest = { showInputDialog = false },
                 title = { Text("Change Profile Photo") },
                 text = {
-                    if (isInputUrlSelected) {
-                    TextField(
-                        value = newImageUrl,
-                        onValueChange = { newImageUrl = it },
-                        label = { Text("Image URL") },
-                        modifier = Modifier.fillMaxWidth()
-                    ) }
-                    else {
-                        Text("You can either select an image from your device or input an image URL.")
+                    Column {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Button(
+                                onClick = { isInputUrlSelected = false },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = if (!isInputUrlSelected) Color.Gray else Color.LightGray
+                                )
+                            ) {
+                                Text("Local Image")
+                            }
+
+                            Button(
+                                onClick = { isInputUrlSelected = true },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = if (isInputUrlSelected) Color.Gray else Color.LightGray
+                                )
+                            ) {
+                                Text("Image URL")
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        if (isInputUrlSelected) {
+                            TextField(
+                                value = newImageUrl,
+                                onValueChange = { newImageUrl = it },
+                                label = { Text("Image URL") },
+                                modifier = Modifier.fillMaxWidth()
+                            ) }
+                        else {
+                            Text("Confirm to select images")
+                        }
                     }
                 },
                 confirmButton = {

@@ -115,8 +115,7 @@ class ChatGroupActivity : ComponentActivity(){
                     },
                     navigationIcon = {
                         IconButton(onClick = {
-                            val intent = Intent(context, MainActivity::class.java)
-                            context.startActivity(intent)
+                            finish()
                         } ) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,

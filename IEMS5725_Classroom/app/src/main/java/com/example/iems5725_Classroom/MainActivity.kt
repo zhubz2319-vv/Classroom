@@ -38,9 +38,13 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.ZeroCornerSize
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.Button
@@ -74,6 +78,7 @@ import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -85,12 +90,7 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.example.iems5725_Classroom.ui.theme.ContrastAwareReplyTheme
 import com.google.firebase.FirebaseApp
 import com.google.firebase.messaging.FirebaseMessaging
-import io.ktor.client.HttpClient
-import io.ktor.client.engine.cio.CIO
-import io.ktor.client.features.json.JsonFeature
-import io.ktor.client.features.json.serializer.KotlinxSerializer
-import io.ktor.client.features.logging.LogLevel
-import io.ktor.client.features.logging.Logging
+import io.ktor.client.*
 import io.ktor.client.request.get
 import io.ktor.client.request.post
 import io.ktor.http.contentType
@@ -247,9 +247,10 @@ fun ScaffoldUI(userName: String) {
                             modifier = Modifier.size(50.dp)
                         ) {
                             Icon(
-                                painter = painterResource(R.drawable.courses),
+                                imageVector = Icons.Default.Home,
                                 contentDescription = "Localized description",
-                                tint = if (selectedTab == 0) MaterialTheme.colorScheme.primary else Color.Black
+                                tint = if (selectedTab == 0) MaterialTheme.colorScheme.primary else Color.Black,
+                                modifier = Modifier.fillMaxSize()
                             )
                         }
                         IconButton(
@@ -258,9 +259,10 @@ fun ScaffoldUI(userName: String) {
                             modifier = Modifier.size(50.dp)
                         ) {
                             Icon(
-                                painter = painterResource(R.drawable.chatgroup_us),
+                                imageVector = Icons.Default.Person,
                                 contentDescription = "Localized description",
-                                tint = if (selectedTab == 1) MaterialTheme.colorScheme.primary else Color.Black
+                                tint = if (selectedTab == 1) MaterialTheme.colorScheme.primary else Color.Black,
+                                modifier = Modifier.fillMaxSize()
                             )
                         }
                         IconButton(
@@ -268,10 +270,9 @@ fun ScaffoldUI(userName: String) {
                                 selectedTab = 2},
                             modifier = Modifier
                                 .size(50.dp)
-                                .clip(RectangleShape)
                         ) {
                             Icon(
-                                painter = painterResource(R.drawable.myinfo_us),
+                                imageVector = Icons.Default.Settings,
                                 contentDescription = "Localized description",
                                 tint = if (selectedTab == 2) MaterialTheme.colorScheme.scrim else Color.Black,
                                 modifier = Modifier.fillMaxSize()
@@ -377,14 +378,24 @@ fun CourseItem(courseName: String, courseCode: String, instructor: String, stude
                 horizontalAlignment = Alignment.CenterHorizontally // 内容居中
             ) {
                 Text(
-                    text = "Course Name: $courseName",
+                    text = courseName,
                     style = MaterialTheme.typography.titleLarge,
-                    fontSize = 18.sp
+                    fontSize = 18.sp,
+                    textAlign = TextAlign.Center
                 )
-                Spacer(modifier = Modifier.height(4.dp)) // 添加一些间隔
-                Text(text = "Course Code: $courseCode", style = MaterialTheme.typography.bodyLarge)
-                Spacer(modifier = Modifier.height(4.dp)) // 添加一些间隔
-                Text(text = "Instructor: $instructor", style = MaterialTheme.typography.bodyMedium)
+                Spacer(modifier = Modifier.height(8.dp)) // 添加一些间隔
+
+                Text(
+                    text = "Code: $courseCode",
+                    style = MaterialTheme.typography.bodyLarge
+                )
+
+                Spacer(modifier = Modifier.height(8.dp)) // 添加一些间隔
+
+                Text(
+                    text = "Instructor: $instructor",
+                    style = MaterialTheme.typography.bodyMedium
+                )
             }
         }
         AnimatedVisibility(
@@ -430,14 +441,13 @@ fun ChatRoomItem(roomId: String, roomName: String, owner: String){
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(8.dp), // 为 Column 添加内边距
+                .padding(16.dp), // 为 Column 添加内边距
             horizontalAlignment = Alignment.CenterHorizontally // 内容居中
         ) {
-            Text(text = "Room Id: $roomId", style = MaterialTheme.typography.bodyLarge)
-            Spacer(modifier = Modifier.height(4.dp)) // 添加一些间隔
-            Text(text = "Room Name: $roomName", style = MaterialTheme.typography.bodyMedium)
-            Spacer(modifier = Modifier.height(4.dp)) // 添加一些间隔
-            Text(text = "Owner: $owner", style = MaterialTheme.typography.bodyMedium)
+            Text(text = roomName,
+                style = MaterialTheme.typography.bodyMedium,
+                textAlign = TextAlign.Center
+                )
         }
     }
 }
