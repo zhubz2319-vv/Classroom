@@ -47,6 +47,7 @@ import kotlinx.serialization.json.put
 import java.text.SimpleDateFormat
 import java.util.Date
 import android.util.Log
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.lifecycle.Observer
@@ -75,8 +76,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.remember
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.lifecycleScope
 import com.example.iems5725_Classroom.network.*
 import com.google.firebase.messaging.FirebaseMessaging
@@ -128,15 +131,46 @@ class LoginActivity : ComponentActivity() {
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    // 密码输入框
-                    TextField(
-                        value = password,
-                        onValueChange = { password = it },
-                        label = { Text("Password") },
-                        modifier = Modifier.fillMaxWidth(),
-                        isError = errorMessage.isNotEmpty(),
-                        visualTransformation = PasswordVisualTransformation() // 隐藏密码输入
-                    )
+                    Box(modifier = Modifier.fillMaxWidth()) {
+
+                        TextField(
+                            value = password,
+                            onValueChange = { password = it },
+                            label = { Text("Password") },
+                            modifier = Modifier.fillMaxWidth(),
+                            isError = errorMessage.isNotEmpty(),
+                            visualTransformation = PasswordVisualTransformation()
+                        )
+
+                        Text(
+                            text = "Forgot?",
+                            modifier = Modifier
+                                .align(Alignment.CenterEnd)
+                                .padding(end = 8.dp)
+                                .clickable {
+                                    if (username.isEmpty()) {
+                                        errorMessage = "Please fill in username first."
+                                    }
+                                    else {
+                                        with(sharedPref.edit()) {
+                                            putString("username", username)
+                                            apply()
+                                        }
+                                        startActivity(
+                                            Intent(
+                                                context,
+                                                EditProfileActivity::class.java
+                                            )
+                                        )
+                                    }
+                                },
+                            color = Color.Black,
+                            style = TextStyle(fontSize = 16.sp)
+                        )
+
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
 
                     // 错误提示文本
                     if (errorMessage.isNotEmpty()) {
@@ -147,29 +181,32 @@ class LoginActivity : ComponentActivity() {
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
 
                     // 登录按钮
                     Button(
                         onClick = {
-                            lifecycleScope.launch {
-                                val response = doLogin(username, password)
-                                if (response.status == "success") {
-                                    with (sharedPref.edit()) {
-                                        putString("username", username)
-                                        putString("token", response.token)
-                                        apply()
+                            if (username.isEmpty() || password.isEmpty()) {
+                                errorMessage = "Please fill in all fields."
+                            } else {
+                                lifecycleScope.launch {
+                                    val response = doLogin(username, password)
+                                    if (response.status == "success") {
+                                        with(sharedPref.edit()) {
+                                            putString("username", username)
+                                            putString("token", response.token)
+                                            apply()
+                                        }
+                                        val fcm = doSubmitToken(username, FCMToken)
+                                        if (!fcm) {
+                                            Log.d("FCM", "Submit FCM Error")
+                                        }
+                                        val intent = Intent(context, MainActivity::class.java)
+                                        startActivity(intent)
+                                        finish()
+                                    } else {
+                                        errorMessage = response.message
                                     }
-                                    val fcm = doSubmitToken(username, FCMToken)
-                                    if (!fcm) {
-                                        Log.d("FCM", "Submit FCM Error")
-                                    }
-                                    val intent = Intent(context, MainActivity::class.java)
-                                    startActivity(intent)
-                                    finish()
-                                }
-                                else {
-                                    errorMessage = response.message
                                 }
                             }
                         },
@@ -178,6 +215,7 @@ class LoginActivity : ComponentActivity() {
                         Text("Login")
                     }
 
+                    /*
                     Spacer(modifier = Modifier.height(16.dp))
 
                     Button(
@@ -207,13 +245,14 @@ class LoginActivity : ComponentActivity() {
                     ) {
                         Text("Use saved token to login")
                     }
+                    */
 
                     Spacer(modifier = Modifier.height(16.dp))
 
                     // 跳转到注册页面的按钮
                     TextButton(
                         onClick = {
-                            val intent = Intent(context, RegisterActivity::class.java)
+                            val intent = Intent(context, ProfileActivity::class.java)
                             startActivity(intent)
                             finish()
                         }

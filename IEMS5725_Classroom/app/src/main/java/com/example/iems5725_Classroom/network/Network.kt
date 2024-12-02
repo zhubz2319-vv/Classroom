@@ -94,10 +94,10 @@ data class FCMSubmitRequest(
 
 data class ChangeInfoRequest(
     val username: String,
-    val oldPassword: String?,
-    val newPassword: String?,
-    val securityAnswer: String?,
-    val nickName: String?
+    val old_password: String?,
+    val new_password: String?,
+    val security_answer: String?,
+    val nickname: String?
 )
 
 data class RootResponse(

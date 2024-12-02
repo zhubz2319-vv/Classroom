@@ -10,18 +10,11 @@ import com.google.firebase.messaging.RemoteMessage
 import kotlinx.coroutines.*
 
 class MyFirebaseMessagingService : FirebaseMessagingService() {
+
     override fun onNewToken(token: String) {
         Log.d(TAG, "Refreshed token: $token")
-//        sendRegistrationToServer(token, MY_USER_ID)
-
     }
-    private fun sendRegistrationToServer(token: String, user_id: Int) {
-        val message = TokenMessage(token = token,user_id=user_id)
-//        CoroutineScope(Dispatchers.IO).launch {
-//            postInfoToApi(message,BASE_URL+"submit_fcm_token")
-//        }
 
-    }
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
         // Handle FCM messages here
         Log.d(TAG, "From: ${remoteMessage.from}")
@@ -35,9 +28,8 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
             Log.d(TAG, "Message Notification Body: ${it.body}")
             // Show notification
         }
-        remoteMessage.notification?.let { sendNotification(it.body, it.title)}
+        remoteMessage.notification?.let { sendNotification(it.body, it.title) }
     }
-
 
     private fun sendNotification(messageBody: String?, messageTitle: String?) {
         val channelId = "default_channel_id"

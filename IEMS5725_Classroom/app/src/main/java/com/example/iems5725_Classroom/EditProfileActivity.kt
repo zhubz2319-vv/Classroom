@@ -169,6 +169,8 @@ class EditProfileActivity : ComponentActivity() {
         var newSecurityAnswer by remember { mutableStateOf("") }
         var nickName by remember { mutableStateOf("") }
         var errorMessage by remember { mutableStateOf("") }
+        var showDialog by remember { mutableStateOf(false) }
+        var dialogMessage by remember { mutableStateOf("") }
 
         // Dropdown menu state
         var expanded by remember { mutableStateOf(false) }
@@ -179,6 +181,30 @@ class EditProfileActivity : ComponentActivity() {
             "Change Nickname",
             "Change Security Answer"
         )
+
+        if (showDialog) {
+            AlertDialog(
+                onDismissRequest = {
+
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            showDialog = false
+                            finish()
+                        }
+                    ) {
+                        Text("OK")
+                    }
+                },
+                title = {
+                    Text("Notification")
+                },
+                text = {
+                    Text(dialogMessage)
+                }
+            )
+        }
 
         Column(
             modifier = Modifier
@@ -192,7 +218,7 @@ class EditProfileActivity : ComponentActivity() {
             Spacer(modifier = Modifier.height(16.dp))
 
             Text(
-                text = username,
+                text = "User: $username",
                 modifier = Modifier.fillMaxWidth(),
                 textAlign = TextAlign.Center
             )
@@ -322,12 +348,13 @@ class EditProfileActivity : ComponentActivity() {
                 }
 
                 "Change Security Answer" -> {
-                    // Current Security Answer
+
                     TextField(
-                        value = securityAnswer,
-                        onValueChange = { securityAnswer = it },
-                        label = { Text("Current Security Answer") },
+                        value = currentPassword,
+                        onValueChange = { currentPassword = it },
+                        label = { Text("Current Password") },
                         modifier = Modifier.fillMaxWidth(),
+                        visualTransformation = PasswordVisualTransformation(),
                     )
 
                     Spacer(modifier = Modifier.height(8.dp))
@@ -363,7 +390,8 @@ class EditProfileActivity : ComponentActivity() {
                                 lifecycleScope.launch {
                                     val response = doEdit(username = username, oldPassword = currentPassword, newPassword = newPassword)
                                     if (response.status == "success") {
-                                        // Navigate back or show success message
+                                        showDialog = true
+                                        dialogMessage = response.message
                                     } else {
                                         errorMessage = response.message
                                     }
@@ -378,7 +406,7 @@ class EditProfileActivity : ComponentActivity() {
                                 lifecycleScope.launch {
                                     val response = doEdit(username = username, newPassword = newPassword, securityAnswer = securityAnswer)
                                     if (response.status == "success") {
-                                        // Navigate back or show success message
+                                        finish()
                                     } else {
                                         errorMessage = response.message
                                     }
@@ -393,7 +421,7 @@ class EditProfileActivity : ComponentActivity() {
                                 lifecycleScope.launch {
                                     val response = doEdit(username = username, nickName = nickName)
                                     if (response.status == "success") {
-                                        // Navigate back or show success message
+                                        finish()
                                     } else {
                                         errorMessage = response.message
                                     }
@@ -408,7 +436,7 @@ class EditProfileActivity : ComponentActivity() {
                                 lifecycleScope.launch {
                                     val response = doEdit(username = username, oldPassword = currentPassword, securityAnswer = securityAnswer)
                                     if (response.status == "success") {
-                                        // Navigate back or show success message
+                                        finish()
                                     } else {
                                         errorMessage = response.message
                                     }
@@ -426,6 +454,15 @@ class EditProfileActivity : ComponentActivity() {
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text("Submit")
+            }
+
+            Button(
+                onClick = {
+                    finish()
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Back")
             }
         }
     }
