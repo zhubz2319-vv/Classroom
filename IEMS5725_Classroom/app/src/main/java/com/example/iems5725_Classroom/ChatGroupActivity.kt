@@ -1,11 +1,11 @@
 package com.example.iems5725_Classroom
 
-import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -33,7 +33,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material.icons.filled.Send
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -67,9 +67,7 @@ import com.example.iems5725_Classroom.ui.theme.ContrastAwareReplyTheme
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
-import java.util.StringTokenizer
 import com.example.iems5725_Classroom.network.*
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 
@@ -116,6 +114,7 @@ class ChatGroupActivity : ComponentActivity(){
         Log.d("Messages", "Messages updated: $messages")
         val messagesLength = viewModel.messageHistory.value["messages"]?.jsonArray?.size ?: 0
         var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
+        var isDialogOpen by remember { mutableStateOf(false) }
         val getImage = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
             uri?.let {
                 selectedImageUri = uri
@@ -141,6 +140,18 @@ class ChatGroupActivity : ComponentActivity(){
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = "Back to MainPage."
+                            )
+                        }
+                    },
+                    actions ={
+                        IconButton(
+                            onClick = {
+                                isDialogOpen = true
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Add,
+                                contentDescription = "Invite user."
                             )
                         }
                     }
@@ -234,6 +245,62 @@ class ChatGroupActivity : ComponentActivity(){
                     MessageBox(message, sender, time, sender == userName, fileIdString)
                 }
             }
+        }
+
+        if (isDialogOpen) {
+            var newUser by remember { mutableStateOf("") }
+            AlertDialog(
+                onDismissRequest = {
+                    isDialogOpen = false
+                },
+                title = { Text("Invite new member") },
+                text = {
+                    Column {
+                        TextField(
+                            value = newUser,
+                            onValueChange = { newUser = it },
+                            label = { Text("Username") },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 8.dp)
+                        )
+                    }
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            lifecycleScope.launch {
+                                val response = doInvite(id, newUser)
+                                if (response.status == "success") {
+                                    Toast.makeText(
+                                        context,
+                                        "$newUser joined the group",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                    isDialogOpen = false
+                                } else {
+                                    Toast.makeText(
+                                        context,
+                                        response.message,
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                            }
+                        }
+                    ) {
+                        Text("Submit")
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = {
+                            isDialogOpen = false
+                        }
+                    ) {
+                        Text("Cancel")
+                    }
+                }
+            )
         }
     }
 
@@ -339,7 +406,7 @@ class ChatGroupActivity : ComponentActivity(){
         }
     }
 
-    fun openLink(context: Context, url: String) {
+    private fun openLink(context: Context, url: String) {
         val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
         context.startActivity(intent)
     }
@@ -348,5 +415,11 @@ class ChatGroupActivity : ComponentActivity(){
         val api = RetrofitClient.apiService
         return api.getFileName(fileID)
     }
+
+    private suspend fun doInvite(roomCode: String, userName: String): StandardResponse {
+        val api = RetrofitClient.apiService
+        return api.inviteUser(InviteRequest(roomCode, userName, "add"))
+    }
+
 }
 

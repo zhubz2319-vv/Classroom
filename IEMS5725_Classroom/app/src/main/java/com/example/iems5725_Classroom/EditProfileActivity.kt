@@ -1,18 +1,32 @@
 package com.example.iems5725_Classroom
 
 import android.content.Context
-import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MenuAnchorType
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -20,11 +34,11 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.lifecycleScope
-import androidx.lifecycle.viewModelScope
-import com.example.iems5725_Classroom.network.*
+import com.example.iems5725_Classroom.network.ChangeInfoRequest
+import com.example.iems5725_Classroom.network.RetrofitClient
+import com.example.iems5725_Classroom.network.StandardResponse
 import com.example.iems5725_Classroom.ui.theme.ContrastAwareReplyTheme
 import kotlinx.coroutines.launch
-import java.net.IDN
 
 class EditProfileActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -32,162 +46,16 @@ class EditProfileActivity : ComponentActivity() {
 
         setContent {
             ContrastAwareReplyTheme {
-                EditProfileUI()
+                EditProfileScreen()
             }
         }
     }
-    /*
+
+    @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     fun EditProfileScreen() {
         val context = LocalContext.current
         val sharedPref = context.getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
-
-        val username = sharedPref.getString("username", "")!!
-        var password by remember { mutableStateOf("") }
-        var newPassword by remember { mutableStateOf("") }
-        var confirmPassword by remember { mutableStateOf("") }
-        var securityAnswer by remember { mutableStateOf("") }
-        var nickName by remember { mutableStateOf("") }
-        var errorMessage by remember { mutableStateOf("") }
-
-        var expanded by remember { mutableStateOf(false) }
-        var selectedOption by remember { mutableStateOf("Select Option") }
-        val options = listOf(
-            "Change Password",
-            "Reset Password",
-            "Change Nickname",
-            "Change Security Answer"
-        )
-
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Text("Edit Profile", style = MaterialTheme.typography.headlineLarge)
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Text(
-                text = username,
-                modifier = Modifier.fillMaxWidth(),
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // 当前密码输入框
-            TextField(
-                value = password,
-                onValueChange = { password = it },
-                label = { Text("Current Password") },
-                modifier = Modifier.fillMaxWidth(),
-                visualTransformation = PasswordVisualTransformation(),
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // 新密码输入框
-            TextField(
-                value = newPassword,
-                onValueChange = { newPassword = it },
-                label = { Text("New Password") },
-                modifier = Modifier.fillMaxWidth(),
-                visualTransformation = PasswordVisualTransformation(),
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // 确认新密码输入框
-            TextField(
-                value = confirmPassword,
-                onValueChange = { confirmPassword = it },
-                label = { Text("Confirm New Password") },
-                modifier = Modifier.fillMaxWidth(),
-                visualTransformation = PasswordVisualTransformation(),
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            TextField(
-                value = securityAnswer,
-                onValueChange = { securityAnswer = it },
-                label = { Text("What's your favorite food?") },
-                modifier = Modifier.fillMaxWidth(),
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            TextField(
-                value = nickName,
-                onValueChange = { nickName = it },
-                label = { Text("Give you a new name") },
-                modifier = Modifier.fillMaxWidth(),
-            )
-
-            // 错误提示文本
-            if (errorMessage.isNotEmpty()) {
-                Text(
-                    text = errorMessage,
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Button(
-                onClick = {
-                    lifecycleScope.launch {
-                        val response = doEdit(username, password, newPassword, securityAnswer, nickName)
-                        if (response.status == "success") {
-                            finish()
-                        }
-                        else {
-                            errorMessage = response.message
-                        }
-                    }
-                },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Submit")
-            }
-
-        }
-    }
-    */
-    @OptIn(ExperimentalMaterial3Api::class)
-    @Composable
-    fun EditProfileUI(){
-        Scaffold(
-            topBar = {
-                TopAppBar(
-                    title = {
-                        Box(
-                            modifier = Modifier.fillMaxWidth(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("Edit Profile", style = MaterialTheme.typography.headlineLarge)
-                        }
-                    }
-                )
-            },
-            content = { paddingValues ->
-                EditProfileScreen(
-                    modifier = Modifier.padding(paddingValues),
-                )
-            }
-        )
-    }
-
-    @OptIn(ExperimentalMaterial3Api::class)
-    @Composable
-    fun EditProfileScreen(modifier: Modifier) {
-        val context = LocalContext.current
-        val sharedPref = context.getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
-
 
         val username = sharedPref.getString("username", "")!!
         var currentPassword by remember { mutableStateOf("") }
@@ -213,7 +81,7 @@ class EditProfileActivity : ComponentActivity() {
         if (showDialog) {
             AlertDialog(
                 onDismissRequest = {
-
+                    // Do not allow dismiss
                 },
                 confirmButton = {
                     TextButton(
@@ -241,7 +109,7 @@ class EditProfileActivity : ComponentActivity() {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-
+            Text("Edit Profile", style = MaterialTheme.typography.headlineLarge)
 
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -370,7 +238,7 @@ class EditProfileActivity : ComponentActivity() {
                     TextField(
                         value = nickName,
                         onValueChange = { nickName = it },
-                        label = { Text("New Nickname") },
+                        label = { Text("New Name") },
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
@@ -391,7 +259,7 @@ class EditProfileActivity : ComponentActivity() {
                     TextField(
                         value = newSecurityAnswer,
                         onValueChange = { newSecurityAnswer = it },
-                        label = { Text("New Security Answer") },
+                        label = { Text("What's your new favorite food?") },
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
@@ -434,7 +302,8 @@ class EditProfileActivity : ComponentActivity() {
                                 lifecycleScope.launch {
                                     val response = doEdit(username = username, newPassword = newPassword, securityAnswer = securityAnswer)
                                     if (response.status == "success") {
-                                        finish()
+                                        showDialog = true
+                                        dialogMessage = response.message
                                     } else {
                                         errorMessage = response.message
                                     }
@@ -449,7 +318,8 @@ class EditProfileActivity : ComponentActivity() {
                                 lifecycleScope.launch {
                                     val response = doEdit(username = username, nickName = nickName)
                                     if (response.status == "success") {
-                                        finish()
+                                        showDialog = true
+                                        dialogMessage = response.message
                                     } else {
                                         errorMessage = response.message
                                     }
@@ -460,11 +330,12 @@ class EditProfileActivity : ComponentActivity() {
                         }
 
                         "Change Security Answer" -> {
-                            if (securityAnswer.isNotEmpty() && newSecurityAnswer.isNotEmpty()) {
+                            if (currentPassword.isNotEmpty() && newSecurityAnswer.isNotEmpty()) {
                                 lifecycleScope.launch {
                                     val response = doEdit(username = username, oldPassword = currentPassword, securityAnswer = securityAnswer)
                                     if (response.status == "success") {
-                                        finish()
+                                        showDialog = true
+                                        dialogMessage = response.message
                                     } else {
                                         errorMessage = response.message
                                     }
