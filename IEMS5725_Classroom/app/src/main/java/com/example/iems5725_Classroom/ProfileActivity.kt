@@ -34,12 +34,15 @@ import android.net.Uri
 import android.provider.OpenableColumns
 import android.util.Log
 import android.widget.Toast
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import coil3.compose.AsyncImage
 import com.bumptech.glide.integration.compose.ExperimentalGlideComposeApi
 import com.bumptech.glide.integration.compose.GlideImage
 import com.example.iems5725_Classroom.network.*
+import com.example.iems5725_Classroom.ui.theme.ContrastAwareReplyTheme
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
@@ -54,7 +57,9 @@ class ProfileActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         setContent {
-            ProfileScreen()
+            ContrastAwareReplyTheme {
+                ProfileScreen()
+            }
         }
     }
     /*
@@ -202,14 +207,14 @@ class ProfileActivity : ComponentActivity() {
                             modifier = Modifier.fillMaxWidth(),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text("More", style = MaterialTheme.typography.headlineSmall)
+                            Text("Profile", style = MaterialTheme.typography.headlineLarge)
                         }
                     },
                     actions = {
                         IconButton(onClick = {
                             startActivity(Intent(context, MainActivity::class.java))
                         }) {
-                            Icon(Icons.Default.Close, contentDescription = "Close")
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Close")
                         }
                     }
                 )
@@ -345,7 +350,6 @@ class ProfileActivity : ComponentActivity() {
                 .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text("Profile", style = MaterialTheme.typography.headlineLarge)
 
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -462,7 +466,8 @@ class ProfileActivity : ComponentActivity() {
                         "Successfully Disabled",
                         Toast.LENGTH_SHORT
                     ).show()
-                }
+                },
+                modifier = Modifier.fillMaxWidth()
             ) {
                 Text("Disable Auto Login", color = Color.White)
             }

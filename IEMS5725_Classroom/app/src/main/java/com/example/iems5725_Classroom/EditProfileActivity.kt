@@ -8,7 +8,9 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -22,6 +24,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.iems5725_Classroom.network.*
 import com.example.iems5725_Classroom.ui.theme.ContrastAwareReplyTheme
 import kotlinx.coroutines.launch
+import java.net.IDN
 
 class EditProfileActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -29,7 +32,7 @@ class EditProfileActivity : ComponentActivity() {
 
         setContent {
             ContrastAwareReplyTheme {
-                EditProfileScreen()
+                EditProfileUI()
             }
         }
     }
@@ -157,9 +160,34 @@ class EditProfileActivity : ComponentActivity() {
     */
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
-    fun EditProfileScreen() {
+    fun EditProfileUI(){
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = {
+                        Box(
+                            modifier = Modifier.fillMaxWidth(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("Edit Profile", style = MaterialTheme.typography.headlineLarge)
+                        }
+                    }
+                )
+            },
+            content = { paddingValues ->
+                EditProfileScreen(
+                    modifier = Modifier.padding(paddingValues),
+                )
+            }
+        )
+    }
+
+    @OptIn(ExperimentalMaterial3Api::class)
+    @Composable
+    fun EditProfileScreen(modifier: Modifier) {
         val context = LocalContext.current
         val sharedPref = context.getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
+
 
         val username = sharedPref.getString("username", "")!!
         var currentPassword by remember { mutableStateOf("") }
@@ -213,7 +241,7 @@ class EditProfileActivity : ComponentActivity() {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Text("Edit Profile", style = MaterialTheme.typography.headlineLarge)
+
 
             Spacer(modifier = Modifier.height(16.dp))
 

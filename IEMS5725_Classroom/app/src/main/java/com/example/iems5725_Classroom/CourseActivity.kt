@@ -15,7 +15,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.*
 import androidx.compose.material3.TopAppBarDefaults.topAppBarColors
 import androidx.compose.runtime.Composable
@@ -109,7 +112,7 @@ class CourseActivity : ComponentActivity(){
                     }
                 )
             },
-            /*bottomBar = {
+            bottomBar = {
                 BottomAppBar(
                     actions = {
                         Row(
@@ -123,7 +126,7 @@ class CourseActivity : ComponentActivity(){
                                 modifier = Modifier.size(50.dp)
                             ) {
                                 Icon(
-                                    painter = painterResource(R.drawable.announcement),
+                                    imageVector = Icons.Filled.Notifications,
                                     contentDescription = "Localized description",
                                     tint = if (selectedTab == "announcement") MaterialTheme.colorScheme.primary else Color.Black,
                                     modifier = Modifier.clip(RectangleShape)
@@ -135,7 +138,7 @@ class CourseActivity : ComponentActivity(){
                                 modifier = Modifier.size(50.dp)
                             ) {
                                 Icon(
-                                    painter = painterResource(R.drawable.assignment),
+                                    imageVector = Icons.Filled.Edit,
                                     contentDescription = "Localized description",
                                     tint = if (selectedTab == "assignment") MaterialTheme.colorScheme.primary else Color.Black,
                                     modifier = Modifier.clip(RectangleShape)
@@ -147,7 +150,7 @@ class CourseActivity : ComponentActivity(){
                                 modifier = Modifier.size(40.dp)
                             ) {
                                 Icon(
-                                    painter = painterResource(R.drawable.content),
+                                    imageVector = Icons.Filled.DateRange,
                                     contentDescription = "Localized description",
                                     tint = if (selectedTab == "content") MaterialTheme.colorScheme.scrim else Color.Black,
                                     modifier = Modifier.clip(RectangleShape)
@@ -157,7 +160,7 @@ class CourseActivity : ComponentActivity(){
                     },
 
                     )
-            },*/
+            },
             modifier = Modifier.fillMaxSize()
         ) { innerPadding ->
             if (viewModel.isLoading2.value){

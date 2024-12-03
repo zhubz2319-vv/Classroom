@@ -266,7 +266,9 @@ fun ScaffoldUI(userName: String) {
                             )
                         }
                         IconButton(
-                            onClick = { viewModel.fetchTabData(2, "My Profile", userName)
+                            onClick = {
+                                val intent = Intent(context, ProfileActivity::class.java)
+                                context.startActivity(intent)
                                 selectedTab = 2},
                             modifier = Modifier
                                 .size(50.dp)
@@ -339,13 +341,6 @@ fun ScaffoldUI(userName: String) {
                                         owner.toString()
                                     )
                                 }
-                            }
-
-                            2 -> {
-                                val nickname =
-                                    viewModel.content.value["nickname"]?.jsonPrimitive?.content
-                                val role = viewModel.content.value["role"]?.jsonPrimitive?.content
-                                UserInfoScreen(nickname.toString(), role.toString())
                             }
                         }
                     }
@@ -646,7 +641,6 @@ fun CreateRoomDialog(
                             .fillMaxWidth()
                             .padding(bottom = 8.dp)
                     )
-
                 }
             },
             confirmButton = {

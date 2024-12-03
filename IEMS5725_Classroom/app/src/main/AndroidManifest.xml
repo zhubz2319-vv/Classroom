@@ -37,9 +37,11 @@
         <activity
             android:name=".ChatGroupActivity">
         </activity>
-        <activity android:name=".ProfileActivity">
+        <activity android:name=".ProfileActivity"
+            android:launchMode="singleTask">
         </activity>
-        <activity android:name="EditProfileActivity">
+        <activity android:name="EditProfileActivity"
+            android:launchMode="singleTask">
         </activity>
         <service
             android:name=".MyFirebaseMessagingService"

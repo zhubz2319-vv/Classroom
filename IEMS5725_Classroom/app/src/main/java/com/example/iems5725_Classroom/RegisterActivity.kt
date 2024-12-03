@@ -205,6 +205,7 @@ class RegisterActivity : ComponentActivity() {
                                 }
                                 else -> {
                                     lifecycleScope.launch {
+                                        Log.d("Register fail:", "here")
                                         var code: String? = null
                                         if (authCode.isNotEmpty()) {
                                             code = authCode
