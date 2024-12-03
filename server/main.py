@@ -292,8 +292,15 @@ async def websocket_endpoint(websocket: WebSocket, room_code: str):
         while True:
             message = await websocket.receive_json()
             time = datetime.now(tz=pytz.timezone('Asia/Hong_Kong')).strftime("%Y-%m-%d %H:%M:%S")
-            await database[MESSAGES_COLLECTION].insert_one({"room_code": room_code, "sender": message["sender"], "message": message["message"], "time": time, "file_id": message.get("file_id", None)})
-            await manager.broadcast(room_code, {"sender": message["sender"], "message": message["message"], "time": time, "file_id": message.get("file_id", None)})
+            users = (await database[CHATS_COLLECTION].find_one({"room_code": room_code}))["users"]
+            sender = message["sender"]
+            mess = message["message"]
+            file_id = message.get("file_id", None)
+            await database[MESSAGES_COLLECTION].insert_one({"room_code": room_code, "sender": sender, "message": mess, "time": time, "file_id": file_id})
+            await manager.broadcast(room_code, {"sender": sender, "message": mess, "time": time, "file_id": file_id})
             await notify(users, room_code, f"New message from {sender}")
     except WebSocketDisconnect:
+        manager.disconnect(room_code, websocket)
+    except Exception as e:
+        print(e)
         manager.disconnect(room_code, websocket)
