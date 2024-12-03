@@ -87,6 +87,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.example.iems5725_Classroom.network.Course
 import com.example.iems5725_Classroom.ui.theme.ContrastAwareReplyTheme
 import com.google.firebase.FirebaseApp
 import com.google.firebase.messaging.FirebaseMessaging
@@ -127,23 +128,13 @@ class MainActivity : ComponentActivity() {
         val networkRepository = NetworkRepository()
         val viewModelFactory = MainViewModelFactory(networkRepository)
         val viewModel = ViewModelProvider(this, viewModelFactory).get(MainViewModel::class.java)
-        viewModel.fetchTabData(0, "Courses", username.toString())
-//        CoroutineScope(Dispatchers.IO).launch {
-//            val result = getResultFromApi(BASE_URL + "check_token/?user_id=" + MY_USER_ID)
-//            if (result["status"]?.jsonPrimitive?.content == "ERROR") {
-//                val token = getToken()
-//                if (token != "nothing") {
-//                    val message = TokenMessage(token, MY_USER_ID)
-//                    postInfoToApi (message, BASE_URL+"post_token/")
-//                }
-//            }
-//        }
         setContent {
             ContrastAwareReplyTheme {
                 ScaffoldUI(username.toString())
             }
         }
     }
+
     private fun requestNotificationPermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             val hasPermission = ContextCompat.checkSelfPermission(
@@ -158,9 +149,11 @@ class MainActivity : ComponentActivity() {
                     0
                 )
             }
-            val channel = NotificationChannel("MyNotification","MyNotification",
-                NotificationManager.IMPORTANCE_DEFAULT)
-            val manager = ContextCompat.getSystemService(this,NotificationManager::class.java) as
+            val channel = NotificationChannel(
+                "MyNotification", "MyNotification",
+                NotificationManager.IMPORTANCE_DEFAULT
+            )
+            val manager = ContextCompat.getSystemService(this, NotificationManager::class.java) as
                     NotificationManager
             manager.createNotificationChannel(channel)
         }
@@ -187,19 +180,17 @@ suspend fun getToken(): String = suspendCancellableCoroutine { continuation ->
             )
             return@addOnCompleteListener
         }
-        continuation.resume (task.result ?: "nothing")
+        continuation.resume(task.result ?: "nothing")
     }
 }
 
 //{"room_code":"G01","room_name":"A New Group","username":"test"}
 @Serializable
-data class ChatGroup(val room_code: String,
-                     val room_name: String,
-                     val username: String)
-
-@Serializable
-data class TokenMessage(val token: String,
-                        val user_id: Int)
+data class ChatGroup(
+    val room_code: String,
+    val room_name: String,
+    val username: String
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -207,7 +198,10 @@ fun ScaffoldUI(userName: String) {
     val viewModel: MainViewModel = viewModel()
     val context = LocalContext.current
     var selectedTab by remember { mutableIntStateOf(0) }
-
+    LaunchedEffect(Unit) {
+        viewModel.fetchCourseData(0, "Courses")
+        selectedTab = 0
+    }
     Scaffold(
         topBar = {
             TopAppBar(
@@ -241,9 +235,9 @@ fun ScaffoldUI(userName: String) {
                     ) {
                         IconButton(
                             onClick = {
-                                viewModel.fetchTabData(0, "Courses", userName)
+                                viewModel.fetchCourseData(0, "Courses")
                                 selectedTab = 0
-                                      },
+                            },
                             modifier = Modifier.size(50.dp)
                         ) {
                             Icon(
@@ -254,8 +248,10 @@ fun ScaffoldUI(userName: String) {
                             )
                         }
                         IconButton(
-                            onClick = { viewModel.fetchTabData(1, "Chat Groups", userName)
-                                selectedTab = 1},
+                            onClick = {
+                                viewModel.fetchChatsData(1, "Chat Groups", userName)
+                                selectedTab = 1
+                            },
                             modifier = Modifier.size(50.dp)
                         ) {
                             Icon(
@@ -269,7 +265,8 @@ fun ScaffoldUI(userName: String) {
                             onClick = {
                                 val intent = Intent(context, ProfileActivity::class.java)
                                 context.startActivity(intent)
-                                selectedTab = 2},
+                                selectedTab = 2
+                            },
                             modifier = Modifier
                                 .size(50.dp)
                         ) {
@@ -283,7 +280,7 @@ fun ScaffoldUI(userName: String) {
                     }
                 },
 
-            )
+                )
         },
         modifier = Modifier.fillMaxSize()
     ) { innerPadding ->
@@ -306,39 +303,24 @@ fun ScaffoldUI(userName: String) {
                     item {
                         when (viewModel.selectedTab.value) {
                             0 -> {
-                                val dataArray = viewModel.content.value["courses"]?.jsonArray
-                                dataArray?.forEach { element ->
-                                    val dataObject = element.jsonObject
-                                    val courseName =
-                                        dataObject["course_name"]?.jsonPrimitive?.content
-                                    val courseCode =
-                                        dataObject["course_code"]?.jsonPrimitive?.content
-                                    val instructor =
-                                        dataObject["instructor"]?.jsonPrimitive?.content
-                                    val studentsArray = dataObject["students"]?.jsonArray
-                                    val student: List<String> = studentsArray?.map {
-                                        Json.decodeFromJsonElement<String>(it)
-                                    } ?: emptyList()
-                                    Log.d(TAG, "students list: ${student}")
+                                viewModel.content.value?.courses?.forEach { course: Course ->
+                                    Log.d(TAG, "students list: ${course.students}")
                                     CourseItem(
-                                        courseName.toString(),
-                                        courseCode.toString(),
-                                        instructor.toString(),
-                                        student
+                                        course.course_name,
+                                        course.course_code,
+                                        course.instructor,
+                                        course.students
                                     )
                                 }
+
                             }
+
                             1 -> {
-                                val dataArray = viewModel.content.value["rooms"]?.jsonArray
-                                dataArray?.forEach { element ->
-                                    val dataObject = element.jsonObject
-                                    val roomId = dataObject["room_id"]?.jsonPrimitive?.content
-                                    val roomName = dataObject["room_name"]?.jsonPrimitive?.content
-                                    val owner = dataObject["owner"]?.jsonPrimitive?.content
+                                viewModel.chats.value?.rooms?.forEach { userChats ->
                                     ChatRoomItem(
-                                        roomId.toString(),
-                                        roomName.toString(),
-                                        owner.toString()
+                                        userChats.room_name,
+                                        userChats.room_code,
+                                        userChats.owner,
                                     )
                                 }
                             }
@@ -349,12 +331,13 @@ fun ScaffoldUI(userName: String) {
         }
     }
 }
+
 @Composable
 fun CourseItem(courseName: String, courseCode: String, instructor: String, students: List<String>) {
 //    val context = LocalContext.current
     val isExpanded = remember { mutableStateOf(false) }
     val density = LocalDensity.current
-    Column (
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(8.dp),
@@ -417,8 +400,9 @@ fun CourseItem(courseName: String, courseCode: String, instructor: String, stude
     }
 
 }
+
 @Composable
-fun ChatRoomItem(roomId: String, roomName: String, owner: String){
+fun ChatRoomItem(roomId: String, roomName: String, owner: String) {
     val context = LocalContext.current
     Button(
         onClick = {
@@ -439,13 +423,15 @@ fun ChatRoomItem(roomId: String, roomName: String, owner: String){
                 .padding(16.dp), // 为 Column 添加内边距
             horizontalAlignment = Alignment.CenterHorizontally // 内容居中
         ) {
-            Text(text = roomName,
+            Text(
+                text = roomName,
                 style = MaterialTheme.typography.bodyMedium,
                 textAlign = TextAlign.Center
-                )
+            )
         }
     }
 }
+
 @Composable
 fun UserInfoScreen(nickname: String, role: String) {
     Column(
@@ -471,7 +457,7 @@ fun UserInfoScreen(nickname: String, role: String) {
 }
 
 @Composable
-fun CourseOption(courseName: String, courseCode: String){
+fun CourseOption(courseName: String, courseCode: String) {
     val context = LocalContext.current
     Column(
         modifier = Modifier
@@ -509,7 +495,7 @@ fun CourseOption(courseName: String, courseCode: String){
                 modifier = Modifier
                     .width(5.dp)
                     .fillMaxHeight()
-            ) {  }
+            ) { }
             Button(
                 onClick = {
 
@@ -549,7 +535,7 @@ fun CourseOption(courseName: String, courseCode: String){
                 modifier = Modifier
                     .width(5.dp)
                     .fillMaxHeight()
-            ) {  }
+            ) { }
             Button(
                 onClick = {
 
@@ -580,7 +566,7 @@ fun CreateRoomButton(userName: String) {
             CoroutineScope(Dispatchers.Main).launch {
                 try {
                     viewModel.postForCreateChat(request)
-                    viewModel.fetchTabData(1, "Chat Groups", userName)
+                    viewModel.fetchChatsData(1, "Chat Groups", userName)
                     isDialogOpen = false
                 } catch (e: Exception) {
                     Log.e("CreateRoom", "Error creating room: ${e.message}")
@@ -665,6 +651,11 @@ fun CreateRoomDialog(
 @Composable
 fun PreviewCourseItem() {
     MaterialTheme {
-        CourseItem(courseName = "Intro to Compose", courseCode = "CS101", instructor = "John Doe", students = listOf("Item1", "Item2", "Item3"))
+        CourseItem(
+            courseName = "Intro to Compose",
+            courseCode = "CS101",
+            instructor = "John Doe",
+            students = listOf("Item1", "Item2", "Item3")
+        )
     }
 }

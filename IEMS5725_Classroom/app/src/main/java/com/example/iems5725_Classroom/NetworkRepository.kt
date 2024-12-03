@@ -1,5 +1,7 @@
 package com.example.iems5725_Classroom
 
+import android.util.Log
+import com.google.firebase.messaging.Constants.MessageNotificationKeys.TAG
 import io.ktor.*
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -45,6 +47,7 @@ class NetworkRepository {
     }
     suspend fun fetchDataForTab(cCode: String, sec: String): JsonObject{
         val response: JsonObject = client.get("${BASE_URL}get_courseinfo?course_code=${cCode}&section=${sec}").body()
+        Log.d(TAG, "Fetched data course: ${response}")
         client.close()
         return response
     }

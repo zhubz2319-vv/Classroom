@@ -31,6 +31,9 @@ interface ApiService {
     @GET("/get_info")
     suspend fun getInfo(@Query("username") username: String): UserInfoResponse
 
+    @GET("/get_chats")
+    suspend fun getChats(@Query("username") username: String): UserChatsResponse
+
     @POST("/change_info")
     suspend fun changeInfo(@Body request: ChangeInfoRequest): StandardResponse
 
@@ -65,6 +68,20 @@ interface ApiService {
     @POST("/upload_file")
     suspend fun uploadFile(@Part file: MultipartBody.Part): uploadResponse
 }
+
+data class UserChatsResponse(
+    val status: String,
+    val message: String,
+    val rooms: List<UserChats>
+)
+
+data class UserChats(
+    val room_code: String,
+    val room_name: String,
+    val owner: String,
+    val users: List<String>
+)
+
 
 data class LoginRequest(
     val username: String,
