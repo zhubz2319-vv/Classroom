@@ -185,7 +185,7 @@ async def get_chats(username: str = None) -> RoomsResponse:
         return JSONResponse(content={"status": "fail", "message": "Username not specified"})
     rooms = []
     async for chat in database[CHATS_COLLECTION].find({"users": username}):
-        rooms.append({"room_id": chat["room_code"], "room_name": chat["room_name"], "owner": chat["owner"]})
+        rooms.append({"room_code": chat["room_code"], "room_name": chat["room_name"], "owner": chat["owner"]})
     return JSONResponse(content={"status": "success", "message": "Chats retrieved", "rooms": rooms})
 
 @app.post("/create_chat")

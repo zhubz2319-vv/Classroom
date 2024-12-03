@@ -41,7 +41,7 @@ class MainViewModel(private val networkRepository: NetworkRepository) : ViewMode
     fun fetchCourseData(tabId: Int, tabName: String) {
         _tabName.value = tabName
         viewModelScope.launch {
-            delay(2000)
+            // delay(2000)
             _isLoading.value = true
             val response = api.getCourses()
             _content.postValue(response)
@@ -51,6 +51,7 @@ class MainViewModel(private val networkRepository: NetworkRepository) : ViewMode
             Log.d(TAG, "Table id: ${tabId}")
         }
     }
+
     fun fetchChatsData(tabId: Int, tabName: String, userName: String){
         _tabName.value = tabName
         viewModelScope.launch {

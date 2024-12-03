@@ -118,7 +118,6 @@ class Room(BaseModel):
     room_code: str
     room_name: str
     owner: str
-    users: List[str]
 
 class RoomsResponse(BaseModel):
     status: str

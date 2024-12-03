@@ -83,10 +83,8 @@ data class UserChatsResponse(
 data class UserChats(
     val room_code: String,
     val room_name: String,
-    val owner: String,
-    val users: List<String>
+    val owner: String
 )
-
 
 data class LoginRequest(
     val username: String,

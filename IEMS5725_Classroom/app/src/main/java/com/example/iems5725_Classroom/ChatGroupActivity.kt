@@ -58,6 +58,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModelProvider
@@ -115,6 +116,8 @@ class ChatGroupActivity : ComponentActivity(){
         val messagesLength = viewModel.messageHistory.value["messages"]?.jsonArray?.size ?: 0
         var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
         var isDialogOpen by remember { mutableStateOf(false) }
+        var showUploadDialog by remember { mutableStateOf(false) }
+        var sendFileId by remember { mutableStateOf("") }
         val getImage = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
             uri?.let {
                 selectedImageUri = uri
@@ -150,7 +153,7 @@ class ChatGroupActivity : ComponentActivity(){
                             }
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Add,
+                                painter = painterResource(R.drawable.person_add),
                                 contentDescription = "Invite user."
                             )
                         }
@@ -191,8 +194,25 @@ class ChatGroupActivity : ComponentActivity(){
                         IconButton(
                             onClick = {
                                 if(inputs.isNotBlank()){
-                                    viewModel.sendMessage(sender = userName, message = inputs)
-                                    inputs = ""
+                                    if (sendFileId.isNotEmpty()) {
+                                        lifecycleScope.launch {
+                                            val response = doSendFile(id, userName, inputs, sendFileId)
+                                            if (response.status == "success") {
+                                                inputs = ""
+                                                sendFileId = ""
+                                            }
+                                            else {
+                                                Toast.makeText(
+                                                    context,
+                                                    "Something wrong. Please try again later.",
+                                                    Toast.LENGTH_SHORT
+                                                ).show()
+                                            }
+                                        }
+                                    } else {
+                                        viewModel.sendMessage(sender = userName, message = inputs)
+                                        inputs = ""
+                                    }
                                 }
                             },
                             modifier = Modifier
@@ -209,6 +229,21 @@ class ChatGroupActivity : ComponentActivity(){
                             } else {
                                 CircularProgressIndicator()
                             }
+                        }
+                        IconButton(
+                            onClick = {
+                                showUploadDialog = true
+                            },
+                            modifier = Modifier
+                                .padding(5.dp)
+                                .weight(1f)
+                                .align(Alignment.CenterVertically)
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.upload),
+                                contentDescription = "Upload File",
+                                modifier = Modifier.size(30.dp)
+                            )
                         }
                     }
                 }
@@ -302,6 +337,45 @@ class ChatGroupActivity : ComponentActivity(){
                 }
             )
         }
+
+        if (showUploadDialog) {
+            AlertDialog(
+                onDismissRequest = {
+                    showUploadDialog = false
+                },
+                title = { Text("Attach File") },
+                text = {
+                    Column {
+                        TextField(
+                            value = sendFileId,
+                            onValueChange = { sendFileId = it },
+                            label = { Text("File ID") },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 8.dp)
+                        )
+                    }
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            showUploadDialog = false
+                        }
+                    ) {
+                        Text("Submit")
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = {
+                            showUploadDialog = false
+                        }
+                    ) {
+                        Text("Cancel")
+                    }
+                }
+            )
+        }
     }
 
     @Composable
@@ -367,7 +441,6 @@ class ChatGroupActivity : ComponentActivity(){
         }
     }
 
-    @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     fun FilePreview(fileID: String, fileName: String) {
         val context = LocalContext.current
@@ -378,32 +451,37 @@ class ChatGroupActivity : ComponentActivity(){
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.Center
             ) {
-                Column(
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Text(
-                        text = fileName,
-                        style = MaterialTheme.typography.bodySmall,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    IconButton(
-                        onClick = {
-                            val downloadUrl = "https://chat.lamitt.com/download_file?file_id=$fileID"
-                            openLink(context, downloadUrl)
-                        }
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.ArrowDropDown,
-                            contentDescription = "Download Icon"
-                        )
-                    }
-                }
+                Text(
+                    text = fileName,
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
 
+            Spacer(modifier = Modifier.size(8.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center
+            ) {
+                IconButton(
+                    onClick = {
+                        val downloadUrl = "https://chat.lamitt.com/download_file?file_id=$fileID"
+                        openLink(context, downloadUrl)
+                    }
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.download),
+                        contentDescription = "Download Icon",
+                        tint = Color.Black
+                    )
+                }
             }
         }
+
     }
 
     private fun openLink(context: Context, url: String) {
@@ -419,6 +497,11 @@ class ChatGroupActivity : ComponentActivity(){
     private suspend fun doInvite(roomCode: String, userName: String): StandardResponse {
         val api = RetrofitClient.apiService
         return api.inviteUser(InviteRequest(roomCode, userName, "add"))
+    }
+
+    private suspend fun doSendFile(roomCode: String, userName: String, message: String, fileID: String): StandardResponse {
+        val api = RetrofitClient.apiService
+        return api.sendMessage(MessageRequest(roomCode, userName, message, fileID))
     }
 
 }

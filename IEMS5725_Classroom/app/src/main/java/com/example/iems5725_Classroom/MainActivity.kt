@@ -9,6 +9,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.FullyDrawnReporterOwner
 import androidx.activity.compose.setContent
@@ -40,6 +41,8 @@ import androidx.compose.foundation.shape.ZeroCornerSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Person
@@ -85,9 +88,15 @@ import androidx.compose.ui.unit.sp
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.example.iems5725_Classroom.network.AddDropRequest
 import com.example.iems5725_Classroom.network.Course
+import com.example.iems5725_Classroom.network.RetrofitClient
+import com.example.iems5725_Classroom.network.StandardResponse
+import com.example.iems5725_Classroom.network.UserChats
+import com.example.iems5725_Classroom.network.UserChatsResponse
 import com.example.iems5725_Classroom.ui.theme.ContrastAwareReplyTheme
 import com.google.firebase.FirebaseApp
 import com.google.firebase.messaging.FirebaseMessaging
@@ -115,6 +124,12 @@ import kotlinx.serialization.json.jsonPrimitive
 
 const val BASE_URL = "https://chat.lamitt.com/"
 
+@Serializable
+data class ChatGroup(
+    val room_code: String,
+    val room_name: String,
+    val username: String
+)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -132,6 +147,487 @@ class MainActivity : ComponentActivity() {
             ContrastAwareReplyTheme {
                 ScaffoldUI(username.toString())
             }
+        }
+    }
+
+    @OptIn(ExperimentalMaterial3Api::class)
+    @Composable
+    fun ScaffoldUI(userName: String) {
+        val viewModel: MainViewModel = viewModel()
+        val context = LocalContext.current
+        var selectedTab by remember { mutableIntStateOf(0) }
+        LaunchedEffect(Unit) {
+            viewModel.fetchCourseData(0, "Courses")
+            selectedTab = 0
+        }
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    colors = topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        titleContentColor = MaterialTheme.colorScheme.primary,
+                    ),
+                    title = {
+                        Text(viewModel.tabName.value)
+                    },
+                    /*
+                    navigationIcon = {
+                        IconButton(onClick = { }) {
+                            Icon(
+                                imageVector = Icons.Filled.Menu,
+                                contentDescription = "Localized description"
+                            )
+                        }
+                    },
+
+                     */
+                    actions = {
+                        CreateRoomButton(userName)
+                    }
+                )
+            },
+            bottomBar = {
+                BottomAppBar(
+                    actions = {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceEvenly,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            IconButton(
+                                onClick = {
+                                    viewModel.fetchCourseData(0, "Courses")
+                                    selectedTab = 0
+                                },
+                                modifier = Modifier.size(50.dp)
+                            ) {
+                                Icon(
+                                    painter = painterResource(R.drawable.school),
+                                    contentDescription = "Localized description",
+                                    tint = if (selectedTab == 0) MaterialTheme.colorScheme.primary else Color.Black,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            }
+                            IconButton(
+                                onClick = {
+                                    viewModel.fetchChatsData(1, "Chat Groups", userName)
+                                    selectedTab = 1
+                                },
+                                modifier = Modifier.size(50.dp)
+                            ) {
+                                Icon(
+                                    painter = painterResource(R.drawable.chat),
+                                    contentDescription = "Localized description",
+                                    tint = if (selectedTab == 1) MaterialTheme.colorScheme.primary else Color.Black,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            }
+                            IconButton(
+                                onClick = {
+                                    val intent = Intent(context, ProfileActivity::class.java)
+                                    context.startActivity(intent)
+                                    selectedTab = 2
+                                },
+                                modifier = Modifier
+                                    .size(50.dp)
+                            ) {
+                                Icon(
+                                    painter = painterResource(R.drawable.account_circle),
+                                    contentDescription = "Localized description",
+                                    tint = if (selectedTab == 2) MaterialTheme.colorScheme.scrim else Color.Black,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            }
+                        }
+                    },
+
+                    )
+            },
+            modifier = Modifier.fillMaxSize()
+        ) { innerPadding ->
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+            ) {
+                if (viewModel.isLoading.value)
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.align(Alignment.Center)
+                        )
+                    }
+                else {
+                    LazyColumn {
+                        item {
+                            when (viewModel.selectedTab.value) {
+                                0 -> {
+                                    viewModel.content.value?.courses?.forEach { course: Course ->
+                                        Log.d(TAG, "students list: ${course.students}")
+                                        CourseItem(
+                                            course.course_name,
+                                            course.course_code,
+                                            course.instructor,
+                                            course.students
+                                        )
+                                    }
+
+                                }
+
+                                1 -> {
+                                    viewModel.chats.value?.rooms?.forEach { userChats: UserChats ->
+                                        ChatRoomItem(
+                                            userChats.room_code,
+                                            userChats.room_name,
+                                            userChats.owner
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    @Composable
+    fun CourseItem(courseName: String, courseCode: String, instructor: String, students: List<String>) {
+        val isExpanded = remember { mutableStateOf(false) }
+        val density = LocalDensity.current
+        val userName = getSharedPreferences("user_prefs", Context.MODE_PRIVATE).getString("username", "")!!
+        var isEnrolled = students.contains(userName)
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(8.dp),
+        ) {
+            Button(
+                onClick = {
+                    isExpanded.value = !isExpanded.value
+                },
+                shape = MaterialTheme.shapes.extraSmall
+            ) {
+                // Column 用于垂直排列文本
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(8.dp), // 为 Column 添加内边距
+                    horizontalAlignment = Alignment.CenterHorizontally // 内容居中
+                ) {
+                    Text(
+                        text = courseName,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontSize = 18.sp,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(8.dp)) // 添加一些间隔
+
+                    Text(
+                        text = "Code: $courseCode",
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp)) // 添加一些间隔
+
+                    Text(
+                        text = "Instructor: $instructor",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            }
+            /*
+            IconButton(
+                onClick = {
+                    lifecycleScope.launch {
+                        val action = if (isEnrolled) "drop" else "add"
+                        val response = doAddDrop(userName, courseCode, action)
+                        if (response.status == "success") {
+                            isEnrolled = !isEnrolled
+                        }
+                        else {
+                            Toast.makeText(
+                                this@MainActivity,
+                                "Something wrong. Please try again later.",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    }
+                },
+                modifier = Modifier
+                    .align(Alignment.End)
+                    .padding(8.dp)
+            ) {
+                Icon(
+                    imageVector = if (isEnrolled) Icons.Filled.CheckCircle else Icons.Filled.Clear,
+                    contentDescription = "Add / Drop Course",
+                    tint = if (isEnrolled) Color.Green else Color.Red,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+            */
+            AnimatedVisibility(
+                visible = isExpanded.value,
+                enter = slideInVertically {
+                    // Slide in from 40 dp from the top.
+                    with(density) { -40.dp.roundToPx() }
+                } + expandVertically(
+                    // Expand from the top.
+                    expandFrom = Alignment.Top
+                ) + fadeIn(
+                    // Fade in with the initial alpha of 0.3f.
+                    initialAlpha = 0.3f
+                ),
+                exit = slideOutVertically() + shrinkVertically() + fadeOut()
+            ) {
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = Color.LightGray
+                ) {
+                    CourseOption(courseName, courseCode)
+                }
+            }
+        }
+
+    }
+
+    @Composable
+    fun ChatRoomItem(roomId: String, roomName: String, owner: String) {
+        val context = LocalContext.current
+        Button(
+            onClick = {
+                val intent = Intent(context, ChatGroupActivity::class.java).apply {
+                    putExtra("room_code", roomId)
+                    putExtra("room_name", roomName)
+                }
+                context.startActivity(intent)
+            },
+            modifier = Modifier
+                .fillMaxWidth() // 使按钮占满宽度
+                .padding(8.dp) // 为按钮添加内边距
+        ) {
+            // Column 用于垂直排列文本
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp), // 为 Column 添加内边距
+                horizontalAlignment = Alignment.CenterHorizontally // 内容居中
+            ) {
+                Text(
+                    text = roomName,
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
+    }
+
+    @Composable
+    fun CourseOption(courseName: String, courseCode: String) {
+        val context = LocalContext.current
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally // 内容居中
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Button(
+                    onClick = {
+                        val intent = Intent(context, CourseActivity::class.java).apply {
+                            putExtra("course_code", courseCode)
+                            putExtra("section", "announcement")
+                            putExtra("course_name", courseName)
+                        }
+                        context.startActivity(intent)
+                    },
+                    shape = RoundedCornerShape(ZeroCornerSize),
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .weight(1f),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.secondary
+                    )
+                ) {
+                    Text(text = "Announcement", style = MaterialTheme.typography.bodyLarge)
+                }
+                Surface(
+                    color = Color.White,
+                    modifier = Modifier
+                        .width(5.dp)
+                        .fillMaxHeight()
+                ) { }
+                Button(
+                    onClick = {
+                        val intent = Intent(context, CourseActivity::class.java).apply {
+                            putExtra("course_code", courseCode)
+                            putExtra("section", "assignment")
+                            putExtra("course_name", courseName)
+                        }
+                        context.startActivity(intent)
+                    },
+                    shape = RoundedCornerShape(ZeroCornerSize),
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .weight(1f),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.secondary
+                    )
+                ) {
+                    Text(text = "Assignment", style = MaterialTheme.typography.bodyLarge)
+                }
+            }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+            ) {
+                Button(
+                    onClick = {
+                        val intent = Intent(context, CourseActivity::class.java).apply {
+                            putExtra("course_code", courseCode)
+                            putExtra("section", "content")
+                            putExtra("course_name", courseName)
+                        }
+                        context.startActivity(intent)
+                    },
+                    shape = RoundedCornerShape(ZeroCornerSize),
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .weight(1f),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.secondary
+                    )
+                ) {
+                    Text(text = "Content", style = MaterialTheme.typography.bodyLarge)
+                }
+                Surface(
+                    color = Color.White,
+                    modifier = Modifier
+                        .width(5.dp)
+                        .fillMaxHeight()
+                ) { }
+                Button(
+                    onClick = {
+                        val intent = Intent(context, ChatGroupActivity::class.java).apply {
+                            putExtra("room_code", courseCode)
+                            putExtra("room_name", "$courseName Discuss Group")
+                        }
+                        context.startActivity(intent)
+                    },
+                    shape = RoundedCornerShape(ZeroCornerSize),
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .weight(1f),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.secondary
+                    )
+                ) {
+                    Text(text = "Discuss Group", style = MaterialTheme.typography.bodyLarge)
+                }
+
+            }
+        }
+    }
+
+    @Composable
+    fun CreateRoomButton(userName: String) {
+        var isDialogOpen by remember { mutableStateOf(false) }
+        val viewModel: MainViewModel = viewModel()
+        CreateRoomDialog(
+            isDialogOpen = isDialogOpen,
+            onCreate = { roomCode, roomName ->
+                val request = ChatGroup(room_code = roomCode, room_name = roomName, username = userName)
+                CoroutineScope(Dispatchers.Main).launch {
+                    try {
+                        viewModel.postForCreateChat(request)
+                        viewModel.fetchChatsData(1, "Chat Groups", userName)
+                        isDialogOpen = false
+                    } catch (e: Exception) {
+                        Log.e("CreateRoom", "Error creating room: ${e.message}")
+                    }
+                }
+            },
+            onCancel = {
+                isDialogOpen = false
+            }
+        )
+
+        if (viewModel.selectedTab.value == 1) {
+            IconButton(
+                onClick = {
+                    when (viewModel.selectedTab.value) {
+                        1 -> {
+                            isDialogOpen = true
+                        }
+                    }
+                }
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = "Create New Room",
+                    modifier = Modifier.size(30.dp)
+                )
+            }
+        }
+
+    }
+
+    @Composable
+    fun CreateRoomDialog(
+        onCreate: (String, String) -> Unit,
+        onCancel: () -> Unit,
+        isDialogOpen: Boolean,
+    ) {
+        var roomCode by remember { mutableStateOf("") }
+        var roomName by remember { mutableStateOf("") }
+        if (isDialogOpen) {
+            AlertDialog(
+                onDismissRequest = { onCancel() },
+                title = { Text("Create a New Room") },
+                text = {
+                    Column {
+                        TextField(
+                            value = roomCode,
+                            onValueChange = { roomCode = it },
+                            label = { Text("Room Code") },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 8.dp)
+                        )
+
+                        TextField(
+                            value = roomName,
+                            onValueChange = { roomName = it },
+                            label = { Text("Room Name") },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 8.dp)
+                        )
+                    }
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            onCreate(roomCode, roomName)
+                        }
+                    ) {
+                        Text("Create")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { onCancel() }) {
+                        Text("Cancel")
+                    }
+                }
+            )
         }
     }
 
@@ -170,492 +666,26 @@ class MainActivity : ComponentActivity() {
             notificationManager.createNotificationChannel(notificationChannel)
         }
     }
-}
 
-suspend fun getToken(): String = suspendCancellableCoroutine { continuation ->
-    FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
-        if (!task.isSuccessful) {
-            continuation.resumeWithException(
-                task.exception ?: Exception("Token fetch failed")
-            )
-            return@addOnCompleteListener
-        }
-        continuation.resume(task.result ?: "nothing")
-    }
-}
-
-//{"room_code":"G01","room_name":"A New Group","username":"test"}
-@Serializable
-data class ChatGroup(
-    val room_code: String,
-    val room_name: String,
-    val username: String
-)
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun ScaffoldUI(userName: String) {
-    val viewModel: MainViewModel = viewModel()
-    val context = LocalContext.current
-    var selectedTab by remember { mutableIntStateOf(0) }
-    LaunchedEffect(Unit) {
-        viewModel.fetchCourseData(0, "Courses")
-        selectedTab = 0
-    }
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                colors = topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.primary,
-                ),
-                title = {
-                    Text(viewModel.tabName.value)
-                },
-                navigationIcon = {
-                    IconButton(onClick = { }) {
-                        Icon(
-                            imageVector = Icons.Filled.Menu,
-                            contentDescription = "Localized description"
-                        )
-                    }
-                },
-                actions = {
-                    CreateRoomButton(userName)
-                }
-            )
-        },
-        bottomBar = {
-            BottomAppBar(
-                actions = {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenly,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        IconButton(
-                            onClick = {
-                                viewModel.fetchCourseData(0, "Courses")
-                                selectedTab = 0
-                            },
-                            modifier = Modifier.size(50.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Home,
-                                contentDescription = "Localized description",
-                                tint = if (selectedTab == 0) MaterialTheme.colorScheme.primary else Color.Black,
-                                modifier = Modifier.fillMaxSize()
-                            )
-                        }
-                        IconButton(
-                            onClick = {
-                                viewModel.fetchChatsData(1, "Chat Groups", userName)
-                                selectedTab = 1
-                            },
-                            modifier = Modifier.size(50.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Person,
-                                contentDescription = "Localized description",
-                                tint = if (selectedTab == 1) MaterialTheme.colorScheme.primary else Color.Black,
-                                modifier = Modifier.fillMaxSize()
-                            )
-                        }
-                        IconButton(
-                            onClick = {
-                                val intent = Intent(context, ProfileActivity::class.java)
-                                context.startActivity(intent)
-                                selectedTab = 2
-                            },
-                            modifier = Modifier
-                                .size(50.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Settings,
-                                contentDescription = "Localized description",
-                                tint = if (selectedTab == 2) MaterialTheme.colorScheme.scrim else Color.Black,
-                                modifier = Modifier.fillMaxSize()
-                            )
-                        }
-                    }
-                },
-
-                )
-        },
-        modifier = Modifier.fillMaxSize()
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-        ) {
-            if (viewModel.isLoading.value)
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.align(Alignment.Center)
-                    )
-                }
-            else {
-                LazyColumn {
-                    item {
-                        when (viewModel.selectedTab.value) {
-                            0 -> {
-                                viewModel.content.value?.courses?.forEach { course: Course ->
-                                    Log.d(TAG, "students list: ${course.students}")
-                                    CourseItem(
-                                        course.course_name,
-                                        course.course_code,
-                                        course.instructor,
-                                        course.students
-                                    )
-                                }
-
-                            }
-
-                            1 -> {
-                                viewModel.chats.value?.rooms?.forEach { userChats ->
-                                    ChatRoomItem(
-                                        userChats.room_name,
-                                        userChats.room_code,
-                                        userChats.owner,
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun CourseItem(courseName: String, courseCode: String, instructor: String, students: List<String>) {
-//    val context = LocalContext.current
-    val isExpanded = remember { mutableStateOf(false) }
-    val density = LocalDensity.current
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(8.dp),
-    ) {
-        Button(
-            onClick = {
-                isExpanded.value = !isExpanded.value
-            },
-            shape = MaterialTheme.shapes.extraSmall
-        ) {
-            // Column 用于垂直排列文本
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(8.dp), // 为 Column 添加内边距
-                horizontalAlignment = Alignment.CenterHorizontally // 内容居中
-            ) {
-                Text(
-                    text = courseName,
-                    style = MaterialTheme.typography.titleLarge,
-                    fontSize = 18.sp,
-                    textAlign = TextAlign.Center
-                )
-                Spacer(modifier = Modifier.height(8.dp)) // 添加一些间隔
-
-                Text(
-                    text = "Code: $courseCode",
-                    style = MaterialTheme.typography.bodyLarge
-                )
-
-                Spacer(modifier = Modifier.height(8.dp)) // 添加一些间隔
-
-                Text(
-                    text = "Instructor: $instructor",
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            }
-        }
-        AnimatedVisibility(
-            visible = isExpanded.value,
-            enter = slideInVertically {
-                // Slide in from 40 dp from the top.
-                with(density) { -40.dp.roundToPx() }
-            } + expandVertically(
-                // Expand from the top.
-                expandFrom = Alignment.Top
-            ) + fadeIn(
-                // Fade in with the initial alpha of 0.3f.
-                initialAlpha = 0.3f
-            ),
-            exit = slideOutVertically() + shrinkVertically() + fadeOut()
-        ) {
-            Surface(
-                modifier = Modifier.fillMaxSize(),
-                color = Color.LightGray
-            ) {
-                CourseOption(courseName, courseCode)
-            }
-        }
+    private suspend fun doAddDrop(userName: String, courseCode: String, action: String): StandardResponse {
+        val api = RetrofitClient.apiService
+        return api.selectCourse(AddDropRequest(userName, courseCode, action))
     }
 
-}
-
-@Composable
-fun ChatRoomItem(roomId: String, roomName: String, owner: String) {
-    val context = LocalContext.current
-    Button(
-        onClick = {
-            val intent = Intent(context, ChatGroupActivity::class.java).apply {
-                putExtra("room_code", roomId)
-                putExtra("room_name", roomName)
-            }
-            context.startActivity(intent)
-        },
-        modifier = Modifier
-            .fillMaxWidth() // 使按钮占满宽度
-            .padding(8.dp) // 为按钮添加内边距
-    ) {
-        // Column 用于垂直排列文本
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp), // 为 Column 添加内边距
-            horizontalAlignment = Alignment.CenterHorizontally // 内容居中
-        ) {
-            Text(
-                text = roomName,
-                style = MaterialTheme.typography.bodyMedium,
-                textAlign = TextAlign.Center
+    @Preview
+    @Composable
+    fun PreviewCourseItem() {
+        MaterialTheme {
+            CourseItem(
+                courseName = "Intro to Compose",
+                courseCode = "CS101",
+                instructor = "John Doe",
+                students = listOf("Item1", "Item2", "Item3")
             )
         }
     }
 }
 
-@Composable
-fun UserInfoScreen(nickname: String, role: String) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp), // 设置边距
-        verticalArrangement = Arrangement.Top, // 垂直居中
-        horizontalAlignment = Alignment.Start // 水平居中
-    ) {
-        // 显示用户昵称
-        Text(
-            text = "Nickname: ${nickname}",
-            style = MaterialTheme.typography.bodyLarge
-        )
 
-        Spacer(modifier = Modifier.height(16.dp)) // 添加间距
-        // 显示用户角色
-        Text(
-            text = "Role: ${role}",
-            style = MaterialTheme.typography.bodyLarge
-        )
-    }
-}
 
-@Composable
-fun CourseOption(courseName: String, courseCode: String) {
-    val context = LocalContext.current
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(8.dp),
-        horizontalAlignment = Alignment.CenterHorizontally // 内容居中
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Button(
-                onClick = {
-                    val intent = Intent(context, CourseActivity::class.java).apply {
-                        putExtra("course_code", courseCode)
-                        putExtra("section", "announcement")
-                        putExtra("course_name", courseName)
-                    }
-                    context.startActivity(intent)
-                },
-                shape = RoundedCornerShape(ZeroCornerSize),
-                modifier = Modifier
-                    .fillMaxHeight()
-                    .weight(1f),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.secondary
-                )
-            ) {
-                Text(text = "Announcement", style = MaterialTheme.typography.bodyLarge)
-            }
-            Surface(
-                color = Color.White,
-                modifier = Modifier
-                    .width(5.dp)
-                    .fillMaxHeight()
-            ) { }
-            Button(
-                onClick = {
 
-                },
-                shape = RoundedCornerShape(ZeroCornerSize),
-                modifier = Modifier
-                    .fillMaxHeight()
-                    .weight(1f),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.secondary
-                )
-            ) {
-                Text(text = "Assignment", style = MaterialTheme.typography.bodyLarge)
-            }
-        }
-        Row(
-            modifier = Modifier
-                .fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly,
-        ) {
-            Button(
-                onClick = {
-
-                },
-                shape = RoundedCornerShape(ZeroCornerSize),
-                modifier = Modifier
-                    .fillMaxHeight()
-                    .weight(1f),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.secondary
-                )
-            ) {
-                Text(text = "Content", style = MaterialTheme.typography.bodyLarge)
-            }
-            Surface(
-                color = Color.White,
-                modifier = Modifier
-                    .width(5.dp)
-                    .fillMaxHeight()
-            ) { }
-            Button(
-                onClick = {
-
-                },
-                shape = RoundedCornerShape(ZeroCornerSize),
-                modifier = Modifier
-                    .fillMaxHeight()
-                    .weight(1f),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.secondary
-                )
-            ) {
-                Text(text = "Chat Group", style = MaterialTheme.typography.bodyLarge)
-            }
-
-        }
-    }
-}
-
-@Composable
-fun CreateRoomButton(userName: String) {
-    var isDialogOpen by remember { mutableStateOf(false) }
-    val viewModel: MainViewModel = viewModel()
-    CreateRoomDialog(
-        isDialogOpen = isDialogOpen,
-        onCreate = { roomCode, roomName ->
-            val request = ChatGroup(room_code = roomCode, room_name = roomName, username = userName)
-            CoroutineScope(Dispatchers.Main).launch {
-                try {
-                    viewModel.postForCreateChat(request)
-                    viewModel.fetchChatsData(1, "Chat Groups", userName)
-                    isDialogOpen = false
-                } catch (e: Exception) {
-                    Log.e("CreateRoom", "Error creating room: ${e.message}")
-                }
-            }
-        },
-        onCancel = {
-            isDialogOpen = false
-        }
-    )
-
-    IconButton(
-        onClick = {
-            when (viewModel.selectedTab.value) {
-                1 -> {
-                    isDialogOpen = true
-                }
-            }
-        }
-    ) {
-        Icon(
-            imageVector = Icons.Default.Add,
-            contentDescription = null,
-            modifier = Modifier.size(30.dp)
-        )
-    }
-
-}
-
-@Composable
-fun CreateRoomDialog(
-    onCreate: (String, String) -> Unit,
-    onCancel: () -> Unit,
-    isDialogOpen: Boolean,
-) {
-    var roomCode by remember { mutableStateOf("") }
-    var roomName by remember { mutableStateOf("") }
-    if (isDialogOpen) {
-        AlertDialog(
-            onDismissRequest = { onCancel() },
-            title = { Text("Create a New Room") },
-            text = {
-                Column {
-                    TextField(
-                        value = roomCode,
-                        onValueChange = { roomCode = it },
-                        label = { Text("Room Code") },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 8.dp)
-                    )
-
-                    TextField(
-                        value = roomName,
-                        onValueChange = { roomName = it },
-                        label = { Text("Room Name") },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 8.dp)
-                    )
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        onCreate(roomCode, roomName)
-                    }
-                ) {
-                    Text("Create")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { onCancel() }) {
-                    Text("Cancel")
-                }
-            }
-        )
-    }
-}
-
-@Preview
-@Composable
-fun PreviewCourseItem() {
-    MaterialTheme {
-        CourseItem(
-            courseName = "Intro to Compose",
-            courseCode = "CS101",
-            instructor = "John Doe",
-            students = listOf("Item1", "Item2", "Item3")
-        )
-    }
-}
