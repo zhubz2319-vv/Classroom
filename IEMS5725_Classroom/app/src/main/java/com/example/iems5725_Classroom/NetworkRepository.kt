@@ -16,6 +16,10 @@ import io.ktor.util.InternalAPI
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.Json
+import com.example.iems5725_Classroom.network.*
+import com.google.gson.Gson
+import kotlinx.serialization.json.JsonObjectBuilder
+import kotlinx.serialization.json.encodeToJsonElement
 
 class NetworkRepository {
 
@@ -49,13 +53,16 @@ class NetworkRepository {
         return response
     }
 
-    @OptIn(InternalAPI::class)
-    suspend fun postForCreateChat(message: Any): JsonObject {
-        val response: JsonObject = client.post("${BASE_URL}create_chat"){
-            contentType(io.ktor.http.ContentType.Application.Json)
-            body = message
-        }.body()
-        client.close()
-        return response
+    suspend fun postForCreateChat(message: ChatGroup): JsonObject {
+        val api = RetrofitClient.apiService
+        return Json.encodeToJsonElement(
+            api.createChat(
+                CreateChatRequest(
+                    message.username,
+                    message.room_code,
+                    message.room_name
+                )
+            )
+        ) as JsonObject
     }
 }

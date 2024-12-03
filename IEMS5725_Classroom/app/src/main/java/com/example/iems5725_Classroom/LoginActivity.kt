@@ -99,11 +99,13 @@ class LoginActivity : ComponentActivity() {
                                 }
                             }
                         }
+                        val savedUsername = sharedPref.getString("username", "")
+                        val savedPassword = sharedPref.getString("password", "")
+                        if (!savedUsername.isNullOrEmpty()) {
+                            username = savedUsername
+                        }
                         if (rememberMe) {
-                            val savedUsername = sharedPref.getString("username", "")
-                            val savedPassword = sharedPref.getString("password", "")
-                            if (!savedUsername.isNullOrEmpty() && !savedPassword.isNullOrEmpty()) {
-                                username = savedUsername
+                            if (!savedPassword.isNullOrEmpty()) {
                                 password = savedPassword
                             }
                         }
@@ -245,38 +247,6 @@ class LoginActivity : ComponentActivity() {
                         ) {
                             Text("Login")
                         }
-
-                        /*
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        Button(
-                            onClick = {
-                                lifecycleScope.launch {
-                                    val token = sharedPref.getString("token", null)
-                                    if (token != null) {
-                                        val response = doAuth(token)
-                                        if (response.status == "success") {
-                                            val new_token = doRefresh(token).token
-                                            with (sharedPref.edit()) {
-                                                putString("username", username)
-                                                putString("token", new_token)
-                                                apply()
-                                            }
-                                            val intent = Intent(context, MainActivity::class.java)
-                                            startActivity(intent)
-                                            finish()
-                                        }
-                                        else {
-                                            errorMessage = response.message
-                                        }
-                                    }
-                                }
-                            },
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text("Use saved token to login")
-                        }
-                        */
 
                         Spacer(modifier = Modifier.height(16.dp))
 

@@ -1,15 +1,14 @@
 package com.example.iems5725_Classroom.network
 
+import kotlinx.serialization.Serializable
 import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
-import okhttp3.Response
 import okhttp3.ResponseBody
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Call
 import retrofit2.http.*
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
-import java.util.Dictionary
 
 interface ApiService {
 
@@ -48,6 +47,12 @@ interface ApiService {
 
     @POST("/select_course")
     suspend fun selectCourse(@Body addDropRequest: AddDropRequest): StandardResponse
+
+    @POST("/edit_user")
+    suspend fun inviteUser(@Body inviteRequest: InviteRequest): StandardResponse
+
+    @POST("/create_chat")
+    suspend fun createChat(@Body createChatRequest: CreateChatRequest): StandardResponse
 
     @POST("/send_message")
     suspend fun sendMessage(@Body messageRequest: MessageRequest): StandardResponse
@@ -98,6 +103,18 @@ data class MessageRequest(
     val username: String,
     val message: String,
     val file_id: String?
+)
+
+data class InviteRequest(
+    val room_code: String,
+    val username: String,
+    val action: String
+)
+
+data class CreateChatRequest(
+    val username: String,
+    val room_code: String,
+    val room_name: String
 )
 
 data class FCMSubmitRequest(
@@ -183,6 +200,7 @@ data class CourseInfo(
     val file_id: String?
 )
 
+@Serializable
 data class StandardResponse(
     val status: String,
     val message: String

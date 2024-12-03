@@ -5,6 +5,7 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.iems5725_Classroom.ChatGroup
 import com.example.iems5725_Classroom.NetworkRepository
 import com.google.firebase.messaging.Constants.MessageNotificationKeys.TAG
 import kotlinx.coroutines.launch
@@ -63,7 +64,7 @@ class MainViewModel(private val networkRepository: NetworkRepository) : ViewMode
     private val _createChatResponse = mutableStateOf(buildJsonObject { })
     val createChatResponse: MutableState<JsonObject> = _createChatResponse
 
-    fun postForCreateChat(request: Any){
+    fun postForCreateChat(request: ChatGroup){
         viewModelScope.launch {
             _isCreated.value = false
             val data = networkRepository.postForCreateChat(request)
