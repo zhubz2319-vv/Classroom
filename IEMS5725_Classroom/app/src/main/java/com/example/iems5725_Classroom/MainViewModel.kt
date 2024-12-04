@@ -1,8 +1,8 @@
 import android.util.Log
 import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
@@ -14,7 +14,6 @@ import com.example.iems5725_Classroom.network.CourseInfoResponse
 import com.example.iems5725_Classroom.network.RetrofitClient
 import com.example.iems5725_Classroom.network.UserChatsResponse
 import com.google.firebase.messaging.Constants.MessageNotificationKeys.TAG
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject

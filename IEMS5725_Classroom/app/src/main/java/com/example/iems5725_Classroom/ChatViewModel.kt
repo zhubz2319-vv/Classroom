@@ -3,29 +3,21 @@ package com.example.iems5725_Classroom
 import android.app.Application
 import android.content.Context
 import android.util.Log
-import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.State
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
-import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.iems5725_Classroom.network.AllCoursesResponse
 import com.example.iems5725_Classroom.network.MessagesResponse
 import com.example.iems5725_Classroom.network.RetrofitClient
 import com.google.firebase.messaging.Constants.MessageNotificationKeys.TAG
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
-class ChatViewModel(private val networkRepository: NetworkRepository, roomCode: String, application: Application) : AndroidViewModel(application) {
+class ChatViewModel(roomCode: String, application: Application) : AndroidViewModel(application) {
     private val api = RetrofitClient.apiService
     private val _messages = MutableLiveData<List<JsonObject>>()
     val messages: LiveData<List<JsonObject>> get() = _messages
@@ -71,7 +63,7 @@ class ChatViewModel(private val networkRepository: NetworkRepository, roomCode: 
             _isLoadingMessage.value = true
             delay(1000)
             val data = api.getMessages(roomCode)
-            Log.d(TAG, "Fetched date: ${data}")
+            Log.d(TAG, "Fetched date: $data")
             _messageHistory.postValue(data)
             _isLoadingMessage.value = false
         }

@@ -2,7 +2,6 @@ package com.example.iems5725_Classroom
 
 import android.content.Context
 import android.content.Intent
-import android.content.SharedPreferences
 import android.net.Uri
 import android.os.Bundle
 import android.provider.OpenableColumns
@@ -14,7 +13,6 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -35,13 +33,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.AccountCircle
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Divider
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -49,8 +44,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MenuDefaults
-import androidx.compose.material3.MenuItemColors
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -72,7 +65,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -81,12 +73,14 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.bumptech.glide.integration.compose.ExperimentalGlideComposeApi
 import com.bumptech.glide.integration.compose.GlideImage
+import com.example.iems5725_Classroom.network.FileNameResponse
+import com.example.iems5725_Classroom.network.InviteRequest
+import com.example.iems5725_Classroom.network.MessageRequest
+import com.example.iems5725_Classroom.network.RetrofitClient
+import com.example.iems5725_Classroom.network.StandardResponse
 import com.example.iems5725_Classroom.ui.theme.ContrastAwareReplyTheme
-import kotlinx.serialization.json.jsonArray
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
-import com.example.iems5725_Classroom.network.*
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.jsonPrimitive
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
@@ -106,8 +100,8 @@ class ChatGroupActivity : ComponentActivity(){
             ContrastAwareReplyTheme {
                 val roomCode = intent.getStringExtra("room_code")
                 val roomName = intent.getStringExtra("room_name")
-                val viewModelFactory = ChatViewModelFactory(networkRepository, roomCode.toString(), application)
-                val viewModel = ViewModelProvider(this, viewModelFactory).get(ChatViewModel::class.java)
+                val viewModelFactory = ChatViewModelFactory(roomCode.toString(), application)
+                ViewModelProvider(this, viewModelFactory).get(ChatViewModel::class.java)
 
                 ChatRoomUI(username.toString(), roomCode.toString(), roomName.toString())
             }
@@ -118,7 +112,7 @@ class ChatGroupActivity : ComponentActivity(){
         super.onResume()
         val roomCode = intent.getStringExtra("room_code")
         val networkRepository = NetworkRepository()
-        val viewModelFactory = ChatViewModelFactory(networkRepository,roomCode.toString(), application)
+        val viewModelFactory = ChatViewModelFactory(roomCode.toString(), application)
         val viewModel = ViewModelProvider(this, viewModelFactory).get(ChatViewModel::class.java)
         if (roomCode != null) {
             viewModel.fetchMessage(roomCode.toString())
@@ -138,7 +132,6 @@ class ChatGroupActivity : ComponentActivity(){
         val messagesLength = viewModel.messageHistory.value?.messages?.size ?: 0
         var expanded by remember { mutableStateOf(false) }
         var isDialogOpen by remember { mutableStateOf(false) }
-        var showUploadDialog by remember { mutableStateOf(false) }
         var sendFileId by remember { mutableStateOf("") }
         var selectedFileUri by remember { mutableStateOf<Uri?>(null) }
         var isUploading by remember { mutableStateOf(false) }
@@ -371,7 +364,16 @@ class ChatGroupActivity : ComponentActivity(){
                         }
                         IconButton(
                             onClick = {
-                                getFile.launch(arrayOf("*/*"))
+                                if (sendFileId.isEmpty()) {
+                                    getFile.launch(arrayOf("*/*"))
+                                } else {
+                                    sendFileId = ""
+                                    Toast.makeText(
+                                        context,
+                                        "Upload Cancelled",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
                             },
                             modifier = Modifier
                                 .padding(5.dp)
@@ -404,7 +406,11 @@ class ChatGroupActivity : ComponentActivity(){
                 ) {
                     item {
                         if (viewModel.isLoadingMessage.value) {
-                            CircularProgressIndicator()
+                            Toast.makeText(
+                                context,
+                                "Loading...",
+                                Toast.LENGTH_SHORT
+                            ).show()
                         } else {
                             viewModel.messageHistory.value?.messages?.forEach { message ->
                                 MessageBox(message.message, message.sender, message.time, message.sender == userName, message.file_id)
@@ -481,45 +487,6 @@ class ChatGroupActivity : ComponentActivity(){
             )
         }
 
-        if (showUploadDialog) {
-            AlertDialog(
-                onDismissRequest = {
-                    showUploadDialog = false
-                },
-                title = { Text("Attach File") },
-                text = {
-                    Column {
-                        TextField(
-                            value = sendFileId,
-                            onValueChange = { sendFileId = it },
-                            label = { Text("File ID") },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(bottom = 8.dp)
-                        )
-                    }
-                },
-                confirmButton = {
-                    TextButton(
-                        onClick = {
-                            showUploadDialog = false
-                        }
-                    ) {
-                        Text("Submit")
-                    }
-                },
-                dismissButton = {
-                    TextButton(
-                        onClick = {
-                            showUploadDialog = false
-                        }
-                    ) {
-                        Text("Cancel")
-                    }
-                }
-            )
-        }
-
     }
 
     @OptIn(ExperimentalGlideComposeApi::class)
@@ -530,7 +497,7 @@ class ChatGroupActivity : ComponentActivity(){
         var fileName by remember { mutableStateOf("") }
         val sharedPref = getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
         var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
-        val getImage = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+        rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
             uri?.let {
                 selectedImageUri = uri
             }

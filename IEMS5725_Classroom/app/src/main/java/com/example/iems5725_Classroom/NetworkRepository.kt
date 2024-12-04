@@ -1,8 +1,9 @@
 package com.example.iems5725_Classroom
 
 import android.util.Log
+import com.example.iems5725_Classroom.network.CreateChatRequest
+import com.example.iems5725_Classroom.network.RetrofitClient
 import com.google.firebase.messaging.Constants.MessageNotificationKeys.TAG
-import io.ktor.*
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.cio.CIO
@@ -10,17 +11,10 @@ import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.logging.LogLevel
 import io.ktor.client.plugins.logging.Logging
 import io.ktor.client.request.get
-import io.ktor.client.request.post
-import io.ktor.client.utils.EmptyContent.contentType
-import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
-import io.ktor.util.InternalAPI
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.Json
-import com.example.iems5725_Classroom.network.*
-import com.google.gson.Gson
-import kotlinx.serialization.json.JsonObjectBuilder
 import kotlinx.serialization.json.encodeToJsonElement
 
 class NetworkRepository {
