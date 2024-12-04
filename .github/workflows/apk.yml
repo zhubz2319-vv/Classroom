@@ -14,6 +14,9 @@ jobs:
       uses: actions/checkout@v4
     - name: Setup Java
       uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '21'
     - name: Build
       run: |
         cd IEMS5725_Classroom
@@ -23,5 +26,5 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: app-release.apk
-        path: app/release/app-release.apk
+        path: IEMS5725_Classroom/app/build/outputs/apk/release/app-release-unsigned.apk
       
