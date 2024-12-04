@@ -135,7 +135,7 @@ class ChatGroupActivity : ComponentActivity(){
         var sendFileId by remember { mutableStateOf("") }
         var selectedFileUri by remember { mutableStateOf<Uri?>(null) }
         var isUploading by remember { mutableStateOf(false) }
-            viewModel.fetchMessage(id)
+        //    viewModel.fetchMessage(id)
 
         LaunchedEffect(messages.size) {
             listState.animateScrollToItem(messages.size + messagesLength)
