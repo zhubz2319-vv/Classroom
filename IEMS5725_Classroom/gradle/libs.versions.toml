@@ -23,6 +23,7 @@ okhttp = "4.10.0"
 okhttpBom = "4.12.0"
 retrofit = "2.11.0"
 runtimeLivedata = "1.7.5"
+navigationRuntimeKtx = "2.8.4"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -62,6 +63,7 @@ okhttp-bom = { module = "com.squareup.okhttp3:okhttp-bom", version.ref = "okhttp
 okhttp3-logging-interceptor = { module = "com.squareup.okhttp3:logging-interceptor" }
 okhttp3-okhttp = { module = "com.squareup.okhttp3:okhttp" }
 retrofit = { module = "com.squareup.retrofit2:retrofit", version.ref = "retrofit" }
+androidx-navigation-runtime-ktx = { group = "androidx.navigation", name = "navigation-runtime-ktx", version.ref = "navigationRuntimeKtx" }
 
 
 [plugins]

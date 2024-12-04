@@ -66,6 +66,9 @@ interface ApiService {
     @GET("/get_filename")
     suspend fun getFileName(@Query("file_id") fileID: String): FileNameResponse
 
+    @GET("/get_messages")
+    suspend fun getMessages(@Query("room_code") roomCode: String): MessagesResponse
+
     @GET("/download_file")
     suspend fun downloadFile(@Query("file_id") fileID: String): ResponseBody
 
@@ -73,6 +76,19 @@ interface ApiService {
     @POST("/upload_file")
     suspend fun uploadFile(@Part file: MultipartBody.Part): uploadResponse
 }
+
+data class MessagesResponse(
+    val status: String,
+    val message: String,
+    val messages: List<MessagesItem>
+)
+
+data class MessagesItem(
+    val sender: String,
+    val message: String,
+    val time: String,
+    val file_id: String?
+)
 
 data class UserChatsResponse(
     val status: String,

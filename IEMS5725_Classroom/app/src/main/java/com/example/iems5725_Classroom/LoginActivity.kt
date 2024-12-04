@@ -40,8 +40,10 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.lifecycleScope
+import androidx.navigation.NavHostController
 import com.example.iems5725_Classroom.network.*
 import com.google.firebase.messaging.FirebaseMessaging
+import kotlinx.coroutines.delay
 
 class LoginActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -49,6 +51,7 @@ class LoginActivity : ComponentActivity() {
 
         if (NetworkUtil.isNetworkAvailable(this)) {
             setContent {
+
                 ContrastAwareReplyTheme {  // 使用主题设置
                     val context = applicationContext
                     var username by remember { mutableStateOf("") } // 存储输入的用户名
@@ -268,8 +271,42 @@ class LoginActivity : ComponentActivity() {
             Toast.makeText(this, "网络连接不可用，请检查网络设置", Toast.LENGTH_LONG).show()
             finish() // 结束当前活动
         }
+    }
+    @Composable
+    fun WelcomeScreen(
+        navController: NavHostController, // 用于页面跳转
+    ) {
+        val sharedPref = getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
+        val isLoggedIn = sharedPref.getString("autoLogin","")
 
+        LaunchedEffect(isLoggedIn) {
+            // 自动跳转逻辑
+            delay(2000) // 显示2秒的欢迎界面
+            if (isLoggedIn == "autoLogin") {
+                // 用户已登录，跳转到主界面
+                navController.navigate("home") {
+                    popUpTo("welcome") { inclusive = true }
+                }
+            } else {
+                // 用户未登录，跳转到登录界面
+                navController.navigate("login") {
+                    popUpTo("welcome") { inclusive = true }
+                }
+            }
+        }
 
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                ,
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "Welcome to My App!",
+                style = MaterialTheme.typography.headlineLarge,
+                color = Color.White
+            )
+        }
     }
 
     private suspend fun doLogin(username: String, password: String): LoginResponse {
@@ -291,4 +328,5 @@ class LoginActivity : ComponentActivity() {
         val api = RetrofitClient.apiService
         return api.submitFCMToken(FCMSubmitRequest(username, token)).status == "success"
     }
+
 }

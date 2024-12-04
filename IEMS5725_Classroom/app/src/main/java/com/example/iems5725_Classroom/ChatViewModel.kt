@@ -13,8 +13,12 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.iems5725_Classroom.network.AllCoursesResponse
+import com.example.iems5725_Classroom.network.MessagesResponse
+import com.example.iems5725_Classroom.network.RetrofitClient
 import com.google.firebase.messaging.Constants.MessageNotificationKeys.TAG
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonObject
@@ -22,6 +26,7 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
 class ChatViewModel(private val networkRepository: NetworkRepository, roomCode: String, application: Application) : AndroidViewModel(application) {
+    private val api = RetrofitClient.apiService
     private val _messages = MutableLiveData<List<JsonObject>>()
     val messages: LiveData<List<JsonObject>> get() = _messages
 
@@ -33,8 +38,8 @@ class ChatViewModel(private val networkRepository: NetworkRepository, roomCode: 
     private val _isMessageSent = MutableLiveData<Boolean>()
     val isMessageSent: LiveData<Boolean> get() = _isMessageSent
 
-    private val _messageHistory = mutableStateOf(buildJsonObject { })
-    val messageHistory: MutableState<JsonObject> = _messageHistory
+    private val _messageHistory = MutableLiveData<MessagesResponse>()
+    val messageHistory: LiveData<MessagesResponse> get() = _messageHistory
 
     init {
         val sharedPref = application.getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
@@ -64,9 +69,10 @@ class ChatViewModel(private val networkRepository: NetworkRepository, roomCode: 
     fun fetchMessage(roomCode: String){
         viewModelScope.launch {
             _isLoadingMessage.value = true
-            val data = networkRepository.fetchMessageByRoomCode(roomCode)
+            delay(1000)
+            val data = api.getMessages(roomCode)
             Log.d(TAG, "Fetched date: ${data}")
-            _messageHistory.value = data
+            _messageHistory.postValue(data)
             _isLoadingMessage.value = false
         }
     }

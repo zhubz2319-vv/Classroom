@@ -108,12 +108,12 @@ class ChatGroupActivity : ComponentActivity(){
                 val roomName = intent.getStringExtra("room_name")
                 val viewModelFactory = ChatViewModelFactory(networkRepository, roomCode.toString(), application)
                 val viewModel = ViewModelProvider(this, viewModelFactory).get(ChatViewModel::class.java)
-                viewModel.fetchMessage(roomCode.toString())
+
                 ChatRoomUI(username.toString(), roomCode.toString(), roomName.toString())
             }
         }
     }
-    /*
+
     override fun onResume() {
         super.onResume()
         val roomCode = intent.getStringExtra("room_code")
@@ -124,7 +124,7 @@ class ChatGroupActivity : ComponentActivity(){
             viewModel.fetchMessage(roomCode.toString())
         }
     }
-    */
+
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     fun ChatRoomUI(userName: String, id: String, chatRoomName: String){
@@ -135,18 +135,18 @@ class ChatGroupActivity : ComponentActivity(){
         val isMessageSent = viewModel.isMessageSent.observeAsState(initial = true).value
         val messages by viewModel.messages.observeAsState(emptyList())
         Log.d("Messages", "Messages updated: $messages")
-        val messagesLength = viewModel.messageHistory.value["messages"]?.jsonArray?.size ?: 0
+        val messagesLength = viewModel.messageHistory.value?.messages?.size ?: 0
         var expanded by remember { mutableStateOf(false) }
         var isDialogOpen by remember { mutableStateOf(false) }
         var showUploadDialog by remember { mutableStateOf(false) }
         var sendFileId by remember { mutableStateOf("") }
         var selectedFileUri by remember { mutableStateOf<Uri?>(null) }
         var isUploading by remember { mutableStateOf(false) }
+            viewModel.fetchMessage(id)
 
         LaunchedEffect(messages.size) {
             listState.animateScrollToItem(messages.size + messagesLength)
         }
-
         val getFile = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
             uri?.let {
                 selectedFileUri = uri
@@ -390,6 +390,7 @@ class ChatGroupActivity : ComponentActivity(){
 
 
         ) { innerPadding ->
+
             Box(
                 modifier = Modifier.fillMaxSize()
                     .padding(innerPadding)
@@ -405,14 +406,8 @@ class ChatGroupActivity : ComponentActivity(){
                         if (viewModel.isLoadingMessage.value) {
                             CircularProgressIndicator()
                         } else {
-                            val dataArray = viewModel.messageHistory.value["messages"]?.jsonArray
-                            dataArray?.forEach { element ->
-                                val dataObject = element.jsonObject
-                                val sender = dataObject["sender"]?.jsonPrimitive?.content ?: "Unknown"
-                                val message = dataObject["message"]?.jsonPrimitive?.content ?: ""
-                                val time = dataObject["time"]?.jsonPrimitive?.content ?: "0000-00-00"
-                                val fileIdString = dataObject["file_id"]?.jsonPrimitive?.content
-                                MessageBox(message, sender, time, sender == userName, fileIdString)
+                            viewModel.messageHistory.value?.messages?.forEach { message ->
+                                MessageBox(message.message, message.sender, message.time, message.sender == userName, message.file_id)
                             }
                         }
                     }
