@@ -157,6 +157,7 @@ class ProfileActivity : ComponentActivity() {
                 selectedImageUri = uri
                 sharedPref.edit().putString("profile_pic_url", uri.toString()).apply()
                 profilePicUrl = uri.toString()
+                context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
         }
 

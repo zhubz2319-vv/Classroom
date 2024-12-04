@@ -346,11 +346,12 @@ class MainActivity : ComponentActivity() {
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onPrimary
                         )
+
                         Spacer(modifier = Modifier.height(4.dp))
 
                         Text(
                             text = "Instructor: $instructor",
-                            style = MaterialTheme.typography.bodyLarge,
+                            style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onPrimary
                         )
                     }
@@ -374,40 +375,43 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-
-
-    /*
-IconButton(
-onClick = {
-lifecycleScope.launch {
-    val action = if (isEnrolled) "drop" else "add"
-    val response = doAddDrop(userName, courseCode, action)
-    if (response.status == "success") {
-        isEnrolled = !isEnrolled
-    }
-    else {
-        Toast.makeText(
-            this@MainActivity,
-            "Something wrong. Please try again later.",
-            Toast.LENGTH_SHORT
-        ).show()
-    }
-}
-},
-modifier = Modifier
-.align(Alignment.End)
-.padding(8.dp)
-) {
-Icon(
-imageVector = if (isEnrolled) Icons.Filled.CheckCircle else Icons.Filled.Clear,
-contentDescription = "Add / Drop Course",
-tint = if (isEnrolled) Color.Green else Color.Red,
-modifier = Modifier.size(24.dp)
-)
-}
-*/
+            Box(
+                contentAlignment = Alignment.TopEnd
+            ) {
+                IconButton(
+                    onClick = {
+                        lifecycleScope.launch {
+                            val action = if (isEnrolled) "drop" else "add"
+                            val response = doAddDrop(userName, courseCode, action)
+                            if (response.status == "success") {
+                                isEnrolled = !isEnrolled
+                                Toast.makeText(
+                                    this@MainActivity,
+                                    if (!isEnrolled) "Drop Successfully" else "Add Successfully",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                            else {
+                                Toast.makeText(
+                                    this@MainActivity,
+                                    "Something wrong. Please try again later.",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        }
+                    },
+                    modifier = Modifier
+                        .padding(8.dp)
+                ) {
+                    Icon(
+                        imageVector = if (isEnrolled) Icons.Filled.CheckCircle else Icons.Filled.Clear,
+                        contentDescription = "Add / Drop Course",
+                        tint = if (isEnrolled) Color.Green else Color.Red,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+            }
         }
-
     }
 
     @Composable

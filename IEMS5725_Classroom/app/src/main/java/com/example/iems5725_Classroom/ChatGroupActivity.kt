@@ -5,6 +5,7 @@ import android.content.Intent
 import android.content.SharedPreferences
 import android.net.Uri
 import android.os.Bundle
+import android.provider.OpenableColumns
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -71,6 +72,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -85,6 +87,11 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import com.example.iems5725_Classroom.network.*
 import kotlinx.coroutines.launch
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.RequestBody
+import okhttp3.RequestBody.Companion.asRequestBody
+import java.io.File
 
 
 class ChatGroupActivity : ComponentActivity(){
@@ -106,7 +113,7 @@ class ChatGroupActivity : ComponentActivity(){
             }
         }
     }
-
+    /*
     override fun onResume() {
         super.onResume()
         val roomCode = intent.getStringExtra("room_code")
@@ -117,7 +124,7 @@ class ChatGroupActivity : ComponentActivity(){
             viewModel.fetchMessage(roomCode.toString())
         }
     }
-
+    */
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     fun ChatRoomUI(userName: String, id: String, chatRoomName: String){
@@ -133,11 +140,84 @@ class ChatGroupActivity : ComponentActivity(){
         var isDialogOpen by remember { mutableStateOf(false) }
         var showUploadDialog by remember { mutableStateOf(false) }
         var sendFileId by remember { mutableStateOf("") }
-
+        var selectedFileUri by remember { mutableStateOf<Uri?>(null) }
+        var isUploading by remember { mutableStateOf(false) }
 
         LaunchedEffect(messages.size) {
             listState.animateScrollToItem(messages.size + messagesLength)
         }
+
+        val getFile = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
+            uri?.let {
+                selectedFileUri = uri
+            }
+        }
+
+        fun getFileNameFromUri(): String? {
+            var fileName: String? = null
+            val cursor = context.contentResolver.query(selectedFileUri!!, null, null, null, null)
+            cursor?.use {
+                val nameIndex = it.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                if (it.moveToFirst()) {
+                    fileName = it.getString(nameIndex)
+                }
+            }
+            return fileName
+        }
+
+        fun getFileFromUri(): File? {
+            val fileName = getFileNameFromUri() ?: "Default_Name"
+            val inputStream = context.contentResolver.openInputStream(selectedFileUri!!)
+            val tempFile = File(context.cacheDir, fileName)
+
+            inputStream?.let { input ->
+                tempFile.outputStream().use { output ->
+                    input.copyTo(output)
+                }
+            }
+
+            return if (tempFile.exists()) tempFile else null
+        }
+
+        fun createMultipartBodyPart(file: File, parameterName: String): MultipartBody.Part {
+            val requestBody: RequestBody = file
+                .asRequestBody("application/octet-stream".toMediaTypeOrNull())
+
+            return MultipartBody.Part.createFormData(parameterName, file.name, requestBody)
+        }
+
+        fun prepareFileForUpload(): MultipartBody.Part? {
+            val file = getFileFromUri()
+            return file?.let {
+                createMultipartBodyPart(it, "file")
+            }
+        }
+
+        fun doUploadFile() {
+            val multipartBodyPart = prepareFileForUpload()
+
+            if (multipartBodyPart != null) {
+                lifecycleScope.launch {
+                    isUploading = true
+                    val api = RetrofitClient.apiService
+                    val response = api.uploadFile(multipartBodyPart)
+                    if (response.status == "success") {
+                        selectedFileUri = null
+                        sendFileId = response.file_id
+                        Toast.makeText(context, "Upload successfully", Toast.LENGTH_SHORT).show()
+                    }
+                    else {
+                        println("FILE UPLOAD UNSUCCESSFULLY!")
+                    }
+                    isUploading = false
+                }
+            }
+        }
+
+        if (selectedFileUri != null && !isUploading) {
+            doUploadFile()
+        }
+
         Scaffold(
             topBar = {
                 TopAppBar(
@@ -291,7 +371,7 @@ class ChatGroupActivity : ComponentActivity(){
                         }
                         IconButton(
                             onClick = {
-                                showUploadDialog = true
+                                getFile.launch(arrayOf("*/*"))
                             },
                             modifier = Modifier
                                 .padding(5.dp)
@@ -444,6 +524,7 @@ class ChatGroupActivity : ComponentActivity(){
                 }
             )
         }
+
     }
 
     @OptIn(ExperimentalGlideComposeApi::class)
@@ -459,7 +540,8 @@ class ChatGroupActivity : ComponentActivity(){
                 selectedImageUri = uri
             }
         }
-        var profilePicUrl by remember { mutableStateOf(sharedPref.getString("profile_pic_url", "") ?: "") }
+        val profilePicUrl by remember { mutableStateOf(sharedPref.getString("profile_pic_url", "")!!) }
+
         LaunchedEffect(fileID) {
             if (fileID != null && fileID != "null") {
                 lifecycleScope.launch {
@@ -479,12 +561,14 @@ class ChatGroupActivity : ComponentActivity(){
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = alignment
         ) {
+
             if (!isUser){
                 Box(
                     modifier = Modifier
                         .size(40.dp)
                         .clip(CircleShape)
-                        .background(Color.Gray)
+                        .background(Color.Gray),
+                    contentAlignment = Alignment.Center
                 ) {
                     if (profilePicUrl.isEmpty()) {
                         Icon(
@@ -501,12 +585,6 @@ class ChatGroupActivity : ComponentActivity(){
                             modifier = Modifier.fillMaxSize(),
                             tint = Color.White
                         )
-//                        GlideImage(
-//                            model = profilePicUrl,
-//                            contentDescription = "Profile Photo",
-//                            modifier = Modifier.fillMaxSize(),
-//                            contentScale = ContentScale.Crop
-//                        )
                     }
                 }
             }
@@ -546,6 +624,7 @@ class ChatGroupActivity : ComponentActivity(){
                     )
                 }
             }
+
             if (isUser){
                 Box(
                     modifier = Modifier
